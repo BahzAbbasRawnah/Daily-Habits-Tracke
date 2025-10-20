@@ -1,0 +1,102 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChrome, DeviceOrientation;
+import 'package:easy_localization/easy_localization.dart';
+import 'package:provider/provider.dart';
+import 'package:daily_habits/config/constants.dart';
+import 'package:daily_habits/config/routes.dart';
+import 'package:daily_habits/config/theme.dart';
+import 'package:daily_habits/core/providers/theme_provider.dart';
+import 'package:daily_habits/core/providers/app_state_provider.dart';
+import 'package:daily_habits/features/profile/providers/user_provider.dart';
+import 'package:daily_habits/features/habits/providers/habit_provider.dart';
+import 'package:daily_habits/features/habits/providers/habit_record_provider.dart';
+import 'package:daily_habits/features/habits/providers/habit_note_provider.dart';
+import 'package:daily_habits/features/notifications/providers/notification_provider.dart';
+import 'package:daily_habits/features/analytics/providers/analytics_provider.dart';
+import 'package:daily_habits/features/achievements/providers/achievement_provider.dart';
+import 'package:daily_habits/shared/widgets/app_wrapper.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await EasyLocalization.ensureInitialized();
+  // Set preferred orientations
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [
+        Locale('en'),
+        Locale('ar'),
+      ],
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      startLocale: const Locale('ar'), // Default to Arabic
+      useOnlyLangCode: true,
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AppStateProvider()),
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => UserProvider()),
+          ChangeNotifierProvider(create: (_) => HabitProvider()),
+          ChangeNotifierProvider(create: (_) => HabitRecordProvider()),
+          ChangeNotifierProvider(create: (_) => HabitNoteProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
+          ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
+          ChangeNotifierProvider(create: (_) => AchievementProvider()),
+        ],
+        child: const MyApp(),
+      ),
+    ),
+  );
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    _initializeProviders();
+  }
+
+  // Initialize providers
+  Future<void> _initializeProviders() async {
+    final appStateProvider = Provider.of<AppStateProvider>(context, listen: false);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
+    await Future.wait([
+      appStateProvider.initialize(),
+      themeProvider.initialize(),
+    ]);
+
+    if (mounted) {
+      debugPrint('Providers initialized successfully');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
+    return MaterialApp(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.themeMode,
+      locale: context.locale,
+      supportedLocales: context.supportedLocales,
+      localizationsDelegates: context.localizationDelegates,
+      onGenerateRoute: AppRoutes.generateRoute,
+      home: const AppWrapper(),
+    );
+  }
+}
