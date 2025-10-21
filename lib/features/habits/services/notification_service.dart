@@ -70,6 +70,12 @@ class NotificationService {
   Future<void> scheduleHabitNotifications(Habit habit) async {
     if (!_initialized) await initialize();
 
+    // Check if habitID exists
+    if (habit.habitID == null) {
+      debugPrint('Cannot schedule notifications: habitID is null');
+      return;
+    }
+
     // Cancel existing notifications for this habit
     await cancelHabitNotifications(habit.habitID!);
 

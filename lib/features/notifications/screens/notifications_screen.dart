@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:daily_habits/shared/widgets/custom_app_bar.dart';
+import 'package:daily_habits/shared/widgets/ai_chat_fab.dart';
 import 'package:provider/provider.dart';
 import 'package:daily_habits/config/routes.dart';
 import 'package:daily_habits/config/theme.dart';
@@ -169,7 +170,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
         appBar: CustomAppBar(
         title: 'notifications'.tr(),
-        showBackButton: true,
+        showBackButton: false,
         actions: [
           // Filter button
           IconButton(
@@ -234,7 +235,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       
       ),
-    
+      floatingActionButton: const AIChatFAB(),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(

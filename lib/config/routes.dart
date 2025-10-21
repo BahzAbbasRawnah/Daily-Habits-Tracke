@@ -16,6 +16,7 @@ import 'package:daily_habits/shared/widgets/main_navigation.dart';
 import 'package:daily_habits/features/analytics/screens/analytics_screen.dart';
 import 'package:daily_habits/features/achievements/screens/achievements_screen.dart';
 import 'package:daily_habits/features/profile/screens/about_screen.dart';
+import 'package:daily_habits/features/chat/screens/chat_screen.dart';
 
 /// Route configuration for the Daily Habit Tracker application
 class AppRoutes {
@@ -40,6 +41,7 @@ class AppRoutes {
   static const String resetPassword = '/reset-password';
   static const String mainNavigation = '/main';
   static const String about = '/about';
+  static const String chat = '/chat';
 
   // Define route generator
   static Route<dynamic> generateRoute(RouteSettings routeSettings) {
@@ -167,6 +169,11 @@ class AppRoutes {
               child: Text('Habit Details Screen - Coming Soon'),
             ),
           ),
+        );
+
+      case chat:
+        return MaterialPageRoute(
+          builder: (_) => const ChatScreen(),
         );
 
       // If the route is not defined, show an error page

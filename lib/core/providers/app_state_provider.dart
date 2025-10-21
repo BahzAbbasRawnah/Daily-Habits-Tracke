@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:daily_habits/features/auth/services/auth_service.dart';
 
 class AppStateProvider extends ChangeNotifier {
   bool _isFirstLaunch = true;
@@ -13,7 +14,10 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
-    _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    
+    // Check auth state from AuthService
+    _isLoggedIn = await AuthService.isLoggedIn();
+    
     _isLoading = false;
     notifyListeners();
   }

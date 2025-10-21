@@ -7,6 +7,7 @@ import 'package:daily_habits/shared/widgets/custom_text_field.dart';
 import 'package:daily_habits/shared/widgets/custom_messages.dart';
 import 'package:daily_habits/core/database/habit_database_service.dart';
 import 'package:daily_habits/core/services/google_auth_service.dart';
+import 'package:daily_habits/features/auth/services/auth_service.dart';
 import 'package:local_auth/local_auth.dart';
 
 /// Login screen
@@ -139,6 +140,13 @@ class _LoginScreenState extends State<LoginScreen> {
           throw Exception('Invalid password');
         }
 
+        // Save login state
+        await AuthService.saveLoginState(
+          userId: user.userID ?? 0,
+          email: user.email ?? '',
+          name: user.name,
+        );
+
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -193,6 +201,13 @@ class _LoginScreenState extends State<LoginScreen> {
         });
 
         if (user != null) {
+          // Save login state for Google sign-in
+          await AuthService.saveLoginState(
+            userId: user.userID ?? 0,
+            email: user.email ?? '',
+            name: user.name,
+          );
+
           context.showSuccessMessage('loginSuccessful'.tr());
 
           Future.delayed(const Duration(milliseconds: 1000), () {

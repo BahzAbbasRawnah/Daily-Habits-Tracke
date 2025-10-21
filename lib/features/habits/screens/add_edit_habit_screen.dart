@@ -5,6 +5,7 @@ import '../models/habit_model.dart';
 import '../providers/habit_provider.dart';
 import '../services/notification_service.dart';
 import '../../../config/theme.dart';
+import '../../auth/services/auth_service.dart';
 
 class AddEditHabitScreen extends StatefulWidget {
   final Habit? habit;
@@ -21,6 +22,7 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> with SingleTick
   final _descriptionController = TextEditingController();
   
   late TabController _tabController;
+  int _currentStep = 0;
   
   // Basic info
   HabitCategory _selectedCategory = HabitCategory.other;
@@ -41,6 +43,13 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _currentStep = _tabController.index;
+        });
+      }
+    });
     
     if (widget.habit != null) {
       _initializeWithHabit(widget.habit!);
@@ -677,27 +686,88 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> with SingleTick
         ],
       ),
       child: SafeArea(
-        child: ElevatedButton(
-          onPressed: _saveHabit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryColor,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            // Previous button (show only if not on first step)
+            if (_currentStep > 0)
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _previousStep,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: BorderSide(color: AppTheme.primaryColor),
+                  ),
+                  child: Text(
+                    'previous'.tr(),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              ),
+            
+            if (_currentStep > 0) const SizedBox(width: 12),
+            
+            // Next/Save button
+            Expanded(
+              flex: _currentStep == 0 ? 1 : 1,
+              child: ElevatedButton(
+                onPressed: _currentStep < 2 ? _nextStep : _saveHabit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  _currentStep < 2 
+                      ? 'next'.tr() 
+                      : (isEditing ? 'update_habit'.tr() : 'create_habit'.tr()),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
-            elevation: 0,
-          ),
-          child: Text(
-            isEditing ? 'update_habit'.tr() : 'create_habit'.tr(),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+          ],
         ),
       ),
     );
+  }
+
+  void _nextStep() {
+    // Validate current step before moving to next
+    if (_currentStep == 0) {
+      // Validate basic info (name is required)
+      if (_nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('habit_name_required'.tr()),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        return;
+      }
+    }
+    
+    if (_currentStep < 2) {
+      _tabController.animateTo(_currentStep + 1);
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      _tabController.animateTo(_currentStep - 1);
+    }
   }
 
   Future<void> _addReminderTime() async {
@@ -722,56 +792,195 @@ class _AddEditHabitScreenState extends State<AddEditHabitScreen> with SingleTick
         SnackBar(
           content: Text('habit_name_required'.tr()),
           backgroundColor: AppTheme.errorColor,
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
     }
 
-    final reminderTimeStrings = _reminderTimes
-        .map((t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}')
-        .toList();
-
-    final habit = Habit(
-        habitID: widget.habit?.habitID,
-        userID: 1,
-        name: _nameController.text,
-        description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        category: _selectedCategory,
-        frequency: 'daily', // Keep for backward compatibility
-        schedule: HabitSchedule(
-          type: _scheduleType,
-          days: _selectedDays.isEmpty ? null : _selectedDays,
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
         ),
-        targetType: _selectedTargetType,
-        target: _target,
-        icon: _selectedIcon,
-        color: '#${_selectedColor.value.toRadixString(16).substring(2)}',
-        isActive: _isActive,
-        reminderTimes: reminderTimeStrings.isEmpty ? null : reminderTimeStrings,
+      ),
     );
 
-    final provider = context.read<HabitProvider>();
-    if (widget.habit != null) {
-      await provider.updateHabit(habit);
-    } else {
-      await provider.addHabit(habit);
-    }
+    try {
+      print('🔍 Starting save habit process...');
+      
+      // Get logged-in user ID
+      print('🔍 Getting user ID...');
+      final userId = await AuthService.getSavedUserId();
+      print('🔍 User ID: $userId');
+      
+      if (userId == null) {
+        throw Exception('User not logged in');
+      }
 
-    // Schedule notifications
-    if (reminderTimeStrings.isNotEmpty) {
-      await NotificationService().scheduleHabitNotifications(habit);
-    }
+      print('🔍 Preparing reminder times...');
+      final reminderTimeStrings = _reminderTimes
+          .map((t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}')
+          .toList();
+      print('🔍 Reminder times: $reminderTimeStrings');
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.habit != null ? 'habit_updated'.tr() : 'habit_created'.tr(),
+      print('🔍 Creating habit object...');
+      print('🔍 Name: ${_nameController.text.trim()}');
+      print('🔍 Category: $_selectedCategory');
+      print('🔍 Schedule type: $_scheduleType');
+      print('🔍 Selected days: $_selectedDays');
+      print('🔍 Target type: $_selectedTargetType');
+      print('🔍 Target: $_target');
+      print('🔍 Icon: $_selectedIcon');
+      print('🔍 Color: ${_selectedColor.value.toRadixString(16)}');
+      
+      final habit = Habit(
+          habitID: widget.habit?.habitID,
+          userID: userId,
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+          category: _selectedCategory,
+          frequency: 'daily', // Keep for backward compatibility
+          schedule: HabitSchedule(
+            type: _scheduleType,
+            days: _selectedDays.isEmpty ? null : _selectedDays,
           ),
-          backgroundColor: AppTheme.successColor,
-        ),
+          targetType: _selectedTargetType,
+          target: _target,
+          icon: _selectedIcon,
+          color: '#${_selectedColor.value.toRadixString(16).substring(2)}',
+          isActive: _isActive,
+          reminderTimes: reminderTimeStrings.isEmpty ? null : reminderTimeStrings,
       );
+      print('🔍 Habit object created successfully');
+
+      print('🔍 Getting habit provider...');
+      final provider = context.read<HabitProvider>();
+      
+      Habit savedHabit = habit;
+      
+      if (widget.habit != null) {
+        print('🔍 Updating existing habit...');
+        await provider.updateHabit(habit);
+        savedHabit = habit; // Already has ID
+        print('🔍 Habit updated successfully');
+      } else {
+        print('🔍 Adding new habit...');
+        await provider.addHabit(habit);
+        print('🔍 Habit added successfully');
+        
+        // Reload habits to get the newly created habit with its ID
+        print('🔍 Reloading habits to get new habit ID...');
+        await provider.loadHabits(userId);
+        
+        // Find the newly created habit by name (it should be the most recent one)
+        final newHabit = provider.habits.firstWhere(
+          (h) => h.name == habit.name && h.userID == userId,
+          orElse: () => habit,
+        );
+        savedHabit = newHabit;
+        print('🔍 New habit ID: ${savedHabit.habitID}');
+      }
+
+      // Schedule notifications only if habit has an ID
+      if (reminderTimeStrings.isNotEmpty && savedHabit.habitID != null) {
+        print('🔍 Scheduling notifications for habit ID: ${savedHabit.habitID}...');
+        await NotificationService().scheduleHabitNotifications(savedHabit);
+        print('🔍 Notifications scheduled successfully');
+      } else if (reminderTimeStrings.isNotEmpty) {
+        print('⚠️ Cannot schedule notifications: habit ID is null');
+      }
+
+      if (mounted) {
+        // Close loading dialog
+        Navigator.pop(context);
+        
+        // Close the add/edit screen
+        Navigator.pop(context);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.habit != null ? 'habit_updated'.tr() : 'habit_created'.tr(),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.successColor,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      print('❌ ERROR occurred while saving habit:');
+      print('❌ Error: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Stack trace:');
+      print(stackTrace);
+      
+      if (mounted) {
+        // Close loading dialog
+        Navigator.pop(context);
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'failed_to_save_habit'.tr() + ': ${e.toString()}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            action: SnackBarAction(
+              label: 'Details',
+              textColor: Colors.white,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Error Details'),
+                    content: SingleChildScrollView(
+                      child: Text('$e\n\n$stackTrace'),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
     }
   }
 

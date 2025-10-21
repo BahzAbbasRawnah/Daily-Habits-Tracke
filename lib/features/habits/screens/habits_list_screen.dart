@@ -7,6 +7,7 @@ import '../models/habit_model.dart';
 import '../models/habit_record_model.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../shared/widgets/ai_chat_fab.dart';
 import '../../../config/theme.dart';
 import 'add_edit_habit_screen.dart';
 import 'habit_detail_screen.dart';
@@ -100,17 +101,24 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddEditHabitScreen(),
-            ),
-          );
-        },
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, size: 32),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const AIChatFAB(),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddEditHabitScreen(),
+                ),
+              );
+            },
+            backgroundColor: AppTheme.primaryColor,
+            child: const Icon(Icons.add, size: 32),
+          ),
+        ],
       ),
     );
   }

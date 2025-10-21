@@ -3,7 +3,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:daily_habits/shared/widgets/custom_app_bar.dart';
+import 'package:daily_habits/shared/widgets/ai_chat_fab.dart';
 import 'package:daily_habits/config/routes.dart';
+import 'package:daily_habits/features/auth/services/auth_service.dart';
 import 'package:daily_habits/config/theme.dart';
 import 'package:daily_habits/config/constants.dart';
 import 'package:daily_habits/core/providers/theme_provider.dart';
@@ -85,6 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+      floatingActionButton: const AIChatFAB(),
       body: Consumer2<UserProvider, HabitProvider>(
         builder: (context, userProvider, habitProvider, child) {
           final user = userProvider.user;
@@ -447,7 +450,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildLanguageOption(
               title: 'العربية',
               languageCode: 'ar',
-              flag: '🇦🇪',
+              flag: '🇸🇦',
               isSelected: context.locale.languageCode == 'ar',
               onTap: () {
                 LanguageUtil.changeLanguage(context, 'ar');
@@ -686,6 +689,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await prefs.remove(AppConstants.prefUserToken);
       await prefs.remove(AppConstants.prefUserId);
       await prefs.remove(AppConstants.prefUserRole);
+      
+      // Clear auth state
+      await AuthService.clearLoginState();
 
       // Clear user provider
       if (mounted) {

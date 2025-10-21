@@ -9,7 +9,7 @@ import 'package:daily_habits/features/habits/models/user_model.dart';
 /// SQLite database service for the Daily Habit Tracker application
 class HabitDatabaseService {
   static const String _databaseName = 'daily_habits.db';
-  static const int _databaseVersion = 4; // Updated for notes table and habit_records improvements
+  static const int _databaseVersion = 5; // Updated for enhanced reminders table
   static Database? _database;
   static final HabitDatabaseService _instance = HabitDatabaseService._internal();
 
@@ -110,14 +110,17 @@ class HabitDatabaseService {
       )
     ''');
 
-    // Reminders table
+    // Reminders table - Enhanced for recurring and one-off reminders
     batch.execute('''
       CREATE TABLE Reminders (
         ReminderID INTEGER PRIMARY KEY AUTOINCREMENT,
         HabitID INTEGER NOT NULL,
         Time TEXT NOT NULL,
-        Days TEXT,
-        Enabled BOOLEAN DEFAULT 1,
+        Weekdays TEXT,
+        IsActive BOOLEAN DEFAULT 1,
+        IsRecurring BOOLEAN DEFAULT 1,
+        ScheduledDate DATETIME,
+        SnoozeMinutes INTEGER DEFAULT 10,
         CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (HabitID) REFERENCES Habits(HabitID) ON DELETE CASCADE
       )
@@ -298,6 +301,37 @@ class HabitDatabaseService {
       await batch.commit();
       
       debugPrint('Database upgraded from version 3 to 4');
+    }
+    
+    if (oldVersion < 5) {
+      // Migration from version 4 to 5: Update Reminders table
+      final batch = db.batch();
+      
+      // Drop old Reminders table if exists
+      batch.execute('DROP TABLE IF EXISTS Reminders');
+      
+      // Create new enhanced Reminders table
+      batch.execute('''
+        CREATE TABLE Reminders (
+          ReminderID INTEGER PRIMARY KEY AUTOINCREMENT,
+          HabitID INTEGER NOT NULL,
+          Time TEXT NOT NULL,
+          Weekdays TEXT,
+          IsActive BOOLEAN DEFAULT 1,
+          IsRecurring BOOLEAN DEFAULT 1,
+          ScheduledDate DATETIME,
+          SnoozeMinutes INTEGER DEFAULT 10,
+          CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (HabitID) REFERENCES Habits(HabitID) ON DELETE CASCADE
+        )
+      ''');
+      
+      // Create index for reminders
+      batch.execute('CREATE INDEX IF NOT EXISTS idx_habit_reminders ON Reminders(HabitID)');
+      
+      await batch.commit();
+      
+      debugPrint('Database upgraded from version 4 to 5');
     }
   }
 

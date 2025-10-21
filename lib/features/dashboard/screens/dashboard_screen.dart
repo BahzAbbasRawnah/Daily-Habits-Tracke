@@ -7,6 +7,7 @@ import 'package:daily_habits/features/habits/providers/habit_record_provider.dar
 import 'package:daily_habits/features/habits/widgets/habit_card.dart';
 import 'package:daily_habits/shared/widgets/custom_app_bar.dart';
 import 'package:daily_habits/shared/widgets/loading_indicator.dart';
+import 'package:daily_habits/shared/widgets/ai_chat_fab.dart';
 import 'package:daily_habits/config/theme.dart';
 import 'package:daily_habits/features/habits/screens/habits_list_screen.dart';
 import 'package:daily_habits/features/habits/screens/habit_detail_screen.dart';
@@ -44,6 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
+      floatingActionButton: const AIChatFAB(),
       body: Consumer2<HabitProvider, HabitRecordProvider>(
         builder: (context, habitProvider, recordProvider, child) {
           if (habitProvider.isLoading) {

@@ -361,5 +361,25 @@
   "or": "OR",
   "signInWithGoogle": "Sign in with Google",
   "googleSignInCancelled": "Google sign-in was cancelled",
-  "googleSignInFailed": "Google sign-in failed. Please try again"
+  "googleSignInFailed": "Google sign-in failed. Please try again",
+
+  "ai_assistant": "AI Assistant",
+  "online": "Online",
+  "clear_chat": "Clear Chat",
+  "clear_chat_confirmation": "Are you sure you want to clear the chat history?",
+  "clear": "Clear",
+  "start_conversation": "Start a conversation",
+  "type_message": "Type a message...",
+  "ai_welcome_message": "Hello! I'm your daily habits assistant. How can I help you build better habits today?",
+  "suggestion_morning_routine": "How can I build a morning routine?",
+  "suggestion_consistency": "Tips for staying consistent with habits",
+  "suggestion_track_habits": "How to track my daily habits effectively?",
+  "suggestion_good_habits": "What are some good habits to start?",
+  "suggestion_procrastination": "How to overcome procrastination?",
+  "suggestion_exercise_time": "Best time to exercise daily?",
+  "suggestion_reading_habit": "How to build a reading habit?",
+  "suggestion_sleep_habits": "Tips for better sleep habits",
+  "next": "Next",
+  "previous": "Previous",
+  "failed_to_save_habit": "Failed to save habit"
 }

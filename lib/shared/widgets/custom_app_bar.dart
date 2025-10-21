@@ -28,7 +28,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return AppBar(
       title: subtitle != null
@@ -40,16 +39,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryDarkColor,
-                    fontSize: 20,
+                    color: AppTheme.surfaceLightColor,
+                    fontSize: 25,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle!,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.primaryDarkColor.withOpacity(0.7),
+                    fontSize: 20,
+                    color: AppTheme.surfaceLightColor,
                     fontWeight: FontWeight.normal,
                   ),
                 ),
@@ -59,19 +58,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryDarkColor,
+                color: AppTheme.surfaceLightColor,
+                fontSize: 20,
               ),
             ),
       centerTitle: false,
       elevation: elevation,
-      backgroundColor: Colors.transparent,
-      foregroundColor:
-          foregroundColor ?? (isDarkMode ? Colors.white : Colors.black),
+      backgroundColor:   AppTheme.streakColor ,
       leading: showBackButton
           ? IconButton(
               icon: const Icon(
                 Icons.arrow_back_ios,
-                color: AppTheme.primaryDarkColor,
+                color: AppTheme.surfaceLightColor,
                 ),
               onPressed: onBackPressed ?? () => Navigator.pop(context),
             )

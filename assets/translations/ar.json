@@ -358,5 +358,25 @@
   "or": "أو",
   "signInWithGoogle": "تسجيل الدخول باستخدام Google",
   "googleSignInCancelled": "تم إلغاء تسجيل الدخول بواسطة Google",
-  "googleSignInFailed": "فشل تسجيل الدخول بواسطة Google. يرجى المحاولة مرة أخرى"
+  "googleSignInFailed": "فشل تسجيل الدخول بواسطة Google. يرجى المحاولة مرة أخرى",
+
+  "ai_assistant": "المساعد الذكي",
+  "online": "متصل",
+  "clear_chat": "مسح المحادثة",
+  "clear_chat_confirmation": "هل أنت متأكد أنك تريد مسح سجل المحادثة؟",
+  "clear": "مسح",
+  "start_conversation": "ابدأ محادثة",
+  "type_message": "اكتب رسالة...",
+  "ai_welcome_message": "مرحباً! أنا مساعدك الذكي للعادات اليومية. كيف يمكنني مساعدتك في بناء عادات أفضل اليوم؟",
+  "suggestion_morning_routine": "كيف يمكنني بناء روتين صباحي؟",
+  "suggestion_consistency": "نصائح للحفاظ على الاستمرارية في العادات",
+  "suggestion_track_habits": "كيف أتتبع عاداتي اليومية بفعالية؟",
+  "suggestion_good_habits": "ما هي بعض العادات الجيدة للبدء بها؟",
+  "suggestion_procrastination": "كيف أتغلب على التسويف؟",
+  "suggestion_exercise_time": "ما هو أفضل وقت لممارسة الرياضة يومياً؟",
+  "suggestion_reading_habit": "كيف أبني عادة القراءة؟",
+  "suggestion_sleep_habits": "نصائح لعادات نوم أفضل",
+  "next": "التالي",
+  "previous": "السابق",
+  "failed_to_save_habit": "فشل في حفظ العادة"
 }

@@ -14,11 +14,21 @@ import 'package:daily_habits/features/habits/providers/habit_note_provider.dart'
 import 'package:daily_habits/features/notifications/providers/notification_provider.dart';
 import 'package:daily_habits/features/analytics/providers/analytics_provider.dart';
 import 'package:daily_habits/features/achievements/providers/achievement_provider.dart';
+import 'package:daily_habits/features/chat/providers/chat_provider.dart';
 import 'package:daily_habits/shared/widgets/app_wrapper.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  
+  // Load environment variables
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('Error loading .env file: $e');
+  }
+  
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -46,6 +56,7 @@ void main() async {
           ChangeNotifierProvider(create: (_) => NotificationProvider()),
           ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
           ChangeNotifierProvider(create: (_) => AchievementProvider()),
+          ChangeNotifierProvider(create: (_) => ChatProvider()),
         ],
         child: const MyApp(),
       ),
