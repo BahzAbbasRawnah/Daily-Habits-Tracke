@@ -45,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: CustomAppBar(
         title: 'profile'.tr(),
         showBackButton: false,
@@ -53,7 +54,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined),
+                icon: const Icon(
+                  Icons.notifications_outlined,
+                  color: AppTheme.surfaceLightColor,
+                ),
                 onPressed: () {
                   Navigator.pushNamed(context, AppRoutes.notifications);
                 },
@@ -87,7 +91,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      floatingActionButton: const AIChatFAB(),
       body: Consumer2<UserProvider, HabitProvider>(
         builder: (context, userProvider, habitProvider, child) {
           final user = userProvider.user;

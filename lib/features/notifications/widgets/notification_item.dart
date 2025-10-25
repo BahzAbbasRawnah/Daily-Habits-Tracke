@@ -26,12 +26,27 @@ class NotificationItem extends StatelessWidget {
       key: Key(notification.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: AppTheme.errorColor,
+        margin: const EdgeInsets.only(bottom: 12),
+        alignment: isRtl ? Alignment.centerLeft : Alignment.centerRight,
+        padding: EdgeInsets.only(
+          left: isRtl ? 20 : 0,
+          right: isRtl ? 0 : 20,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.errorColor.withOpacity(0.8),
+              AppTheme.errorColor,
+            ],
+            begin: isRtl ? Alignment.centerRight : Alignment.centerLeft,
+            end: isRtl ? Alignment.centerLeft : Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: const Icon(
-          Icons.delete,
+          Icons.delete_rounded,
           color: Colors.white,
+          size: 28,
         ),
       ),
       confirmDismiss: (direction) async {
@@ -41,137 +56,208 @@ class NotificationItem extends StatelessWidget {
         }
         return false;
       },
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            color: notification.isRead
-                ? null
-                : notification.type.color.withOpacity(0.05),
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor,
-                width: 0.5,
-              ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: notification.isRead
+              ? Border.all(color: Colors.grey.shade200, width: 1)
+              : Border.all(color: notification.type.color.withOpacity(0.3), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: notification.isRead 
+                  ? Colors.black.withOpacity(0.03)
+                  : notification.type.color.withOpacity(0.1),
+              blurRadius: notification.isRead ? 4 : 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Notification icon
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: notification.type.color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  notification.type.icon,
-                  color: notification.type.color,
-                  size: 20,
-                ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: notification.isRead
+                    ? null
+                    : LinearGradient(
+                        colors: [
+                          notification.type.color.withOpacity(0.03),
+                          notification.type.color.withOpacity(0.01),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
               ),
-              const SizedBox(width: 12),
-              
-              // Notification content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Notification icon
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          notification.type.color.withOpacity(0.15),
+                          notification.type.color.withOpacity(0.08),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      notification.type.icon,
+                      color: notification.type.color,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  
+                  // Notification content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Notification type
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Notification type badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: notification.type.color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                notification.type.translationKey.tr(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: notification.type.color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            
+                            // Notification time
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  size: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  notification.getRelativeTime(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Notification title
                         Text(
-                          notification.type.translationKey.tr(),
+                          notification.title,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: notification.type.color,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontWeight: notification.isRead
+                                ? FontWeight.w600
+                                : FontWeight.bold,
+                            color: Colors.black87,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        
+                        // Notification message
+                        Text(
+                          notification.message,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         
-                        // Notification time
-                        Text(
-                          notification.getRelativeTime(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
+                        // Mark as read button (only for unread notifications)
+                        if (!notification.isRead && onMarkAsRead != null) ...[
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: isRtl ? Alignment.centerLeft : Alignment.centerRight,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: InkWell(
+                                onTap: onMarkAsRead,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.done_rounded,
+                                        size: 16,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'markAsRead'.tr(),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    
-                    // Notification title
-                    Text(
-                      notification.title,
-                      style: TextStyle(
-                        fontWeight: notification.isRead
-                            ? FontWeight.normal
-                            : FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    
-                    // Notification message
-                    Text(
-                      notification.message,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[300]
-                            : Colors.grey[700],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    // Mark as read button (only for unread notifications)
-                    if (!notification.isRead && onMarkAsRead != null) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: isRtl ? Alignment.centerLeft : Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: onMarkAsRead,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            'markAsRead'.tr(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              
-              // Unread indicator
-              if (!notification.isRead)
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(left: 8, top: 8),
-                  decoration: BoxDecoration(
-                    color: notification.type.color,
-                    shape: BoxShape.circle,
                   ),
-                ),
-            ],
+                  
+                  // Unread indicator
+                  if (!notification.isRead)
+                    Container(
+                      width: 10,
+                      height: 10,
+                      margin: const EdgeInsets.only(left: 8, top: 4),
+                      decoration: BoxDecoration(
+                        color: notification.type.color,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: notification.type.color.withOpacity(0.5),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -191,19 +277,39 @@ class NotificationDateHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.only(top: 16, bottom: 12, left: 12, right: 12),
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      color: Theme.of(context).brightness == Brightness.dark
-          ? Colors.grey[900]
-          : Colors.grey[100],
-      child: Text(
-        date,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[300]
-              : Colors.grey[700],
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryColor.withOpacity(0.08),
+            AppTheme.primaryColor.withOpacity(0.03),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.primaryColor.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.calendar_today_rounded,
+            size: 16,
+            color: AppTheme.primaryColor,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            date,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }

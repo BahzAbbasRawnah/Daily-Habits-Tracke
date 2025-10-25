@@ -12,7 +12,7 @@ import '../../../config/theme.dart';
 import 'add_edit_habit_screen.dart';
 import 'habit_detail_screen.dart';
 
-enum HabitFilter { today, tomorrow, thisWeek, thisMonth, all }
+enum HabitFilter { all, today, tomorrow, thisWeek, thisMonth }
 
 /// Enhanced habits list screen with modern UI and filtering
 class HabitsListScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class HabitsListScreen extends StatefulWidget {
 }
 
 class _HabitsListScreenState extends State<HabitsListScreen> {
-  HabitFilter _selectedFilter = HabitFilter.today;
+  HabitFilter _selectedFilter = HabitFilter.all;
 
   @override
   void initState() {
@@ -101,24 +101,22 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
           );
         },
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          const AIChatFAB(),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddEditHabitScreen(),
-                ),
-              );
-            },
-            backgroundColor: AppTheme.primaryColor,
-            child: const Icon(Icons.add, size: 32),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddEditHabitScreen(),
+            ),
+          );
+          // Reload habits after returning from add/edit screen
+          if (mounted) {
+            context.read<HabitProvider>().loadHabits(1);
+            context.read<HabitRecordProvider>().loadTodayRecords(1);
+          }
+        },
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.add, size: 32),
       ),
     );
   }
@@ -245,11 +243,11 @@ class _HabitsListScreenState extends State<HabitsListScreen> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
+            _buildFilterChip('all_habits'.tr(), HabitFilter.all),
             _buildFilterChip('today'.tr(), HabitFilter.today),
             _buildFilterChip('tomorrow'.tr(), HabitFilter.tomorrow),
             _buildFilterChip('this_week'.tr(), HabitFilter.thisWeek),
             _buildFilterChip('this_month'.tr(), HabitFilter.thisMonth),
-            _buildFilterChip('all'.tr(), HabitFilter.all),
           ],
         ),
       ),

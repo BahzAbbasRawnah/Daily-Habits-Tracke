@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:daily_habits/config/routes.dart';
 import 'package:daily_habits/config/theme.dart';
@@ -9,6 +10,8 @@ import 'package:daily_habits/core/database/habit_database_service.dart';
 import 'package:daily_habits/core/services/google_auth_service.dart';
 import 'package:daily_habits/features/auth/services/auth_service.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:daily_habits/features/habits/services/reminder_manager_service.dart';
+import 'package:daily_habits/features/habits/widgets/permission_dialog.dart';
 
 /// Login screen
 class LoginScreen extends StatefulWidget {
@@ -56,6 +59,27 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Check and request notification permissions
+  Future<void> _checkAndRequestPermissions() async {
+    // Wait for navigation to complete
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    
+    debugPrint('🔍 Checking permissions after login...');
+    
+    final reminderManager = ReminderManagerService();
+    final hasPermission = await reminderManager.arePermissionsGranted();
+    
+    debugPrint('🔍 Has permission: $hasPermission');
+    
+    if (!hasPermission && mounted) {
+      debugPrint('🔔 Showing permission dialog...');
+      await PermissionDialog.showExactAlarmPermissionDialog(context);
+    } else {
+      debugPrint('✅ Permissions already granted or context not available');
+    }
+  }
+
   // Authenticate with biometrics
   Future<void> _authenticateWithBiometrics() async {
     try {
@@ -84,6 +108,9 @@ class _LoginScreenState extends State<LoginScreen> {
           );
 
           // Login successful - navigate to habits screen
+          // Start permission check in parallel
+          _checkAndRequestPermissions();
+          
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {
               Navigator.pushNamedAndRemoveUntil(
@@ -154,6 +181,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
           context.showSuccessMessage('loginSuccessful'.tr());
 
+          // Start permission check in parallel
+          _checkAndRequestPermissions();
+
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {
               // Navigate to dashboard and clear all previous routes
@@ -209,6 +239,9 @@ class _LoginScreenState extends State<LoginScreen> {
           );
 
           context.showSuccessMessage('loginSuccessful'.tr());
+
+          // Start permission check in parallel
+          _checkAndRequestPermissions();
 
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {

@@ -314,6 +314,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: Column(
           children: categories.entries.map((entry) {
             final percentage = total > 0 ? (entry.value / total) * 100 : 0.0;
+            // Translate category name
+            final translatedCategory = entry.key.tr();
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Column(
@@ -323,7 +325,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        entry.key,
+                        translatedCategory,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       Text(

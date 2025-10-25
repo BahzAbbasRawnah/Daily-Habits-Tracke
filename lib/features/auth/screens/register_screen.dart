@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:daily_habits/config/routes.dart';
 import 'package:daily_habits/config/theme.dart';
@@ -8,6 +9,9 @@ import 'package:daily_habits/shared/widgets/custom_messages.dart';
 import 'package:daily_habits/features/habits/models/user_model.dart';
 import 'package:daily_habits/core/database/habit_database_service.dart';
 import 'package:daily_habits/core/services/google_auth_service.dart';
+import 'package:daily_habits/features/auth/services/auth_service.dart';
+import 'package:daily_habits/features/habits/services/reminder_manager_service.dart';
+import 'package:daily_habits/features/habits/widgets/permission_dialog.dart';
 
 /// Register screen
 class RegisterScreen extends StatefulWidget {
@@ -39,6 +43,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  // Check and request notification permissions
+  Future<void> _checkAndRequestPermissions() async {
+    // Wait for navigation to complete
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    
+    debugPrint('🔍 Checking permissions after registration...');
+    
+    final reminderManager = ReminderManagerService();
+    final hasPermission = await reminderManager.arePermissionsGranted();
+    
+    debugPrint('🔍 Has permission: $hasPermission');
+    
+    if (!hasPermission && mounted) {
+      debugPrint('🔔 Showing permission dialog...');
+      await PermissionDialog.showExactAlarmPermissionDialog(context);
+    } else {
+      debugPrint('✅ Permissions already granted or context not available');
+    }
+  }
+
   Future<void> _register() async {
     if (_formKey.currentState?.validate() ?? false) {
       if (!_acceptTerms) {
@@ -61,7 +86,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           updatedAt: DateTime.now(),
         );
 
-        await _databaseService.insertUser(user);
+        final userId = await _databaseService.insertUser(user);
+
+        // Save login state
+        await AuthService.saveLoginState(
+          userId: userId,
+          email: user.email ?? '',
+          name: user.name,
+        );
 
         if (mounted) {
           setState(() {
@@ -69,6 +101,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           });
 
           context.showSuccessMessage('registrationSuccessful'.tr());
+
+          // Start permission check in parallel
+          _checkAndRequestPermissions();
 
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) {
@@ -108,7 +143,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         if (user != null) {
+          // Save login state for Google sign-in
+          await AuthService.saveLoginState(
+            userId: user.userID ?? 0,
+            email: user.email ?? '',
+            name: user.name,
+          );
+
           context.showSuccessMessage('registrationSuccessful'.tr());
+
+          // Start permission check in parallel
+          _checkAndRequestPermissions();
 
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {

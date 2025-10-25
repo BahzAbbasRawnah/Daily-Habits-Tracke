@@ -26,7 +26,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HabitProvider>().loadHabits(1);
       context.read<HabitRecordProvider>().loadTodayRecords(1);
+      // Load records for the past 7 days for the chart
+      _loadWeeklyRecords();
     });
+  }
+
+  Future<void> _loadWeeklyRecords() async {
+    final now = DateTime.now();
+    final startDate = now.subtract(const Duration(days: 6));
+    await context.read<HabitRecordProvider>().loadRecordsByDateRange(startDate, now);
   }
 
   @override
@@ -45,7 +53,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      floatingActionButton: const AIChatFAB(),
       body: Consumer2<HabitProvider, HabitRecordProvider>(
         builder: (context, habitProvider, recordProvider, child) {
           if (habitProvider.isLoading) {
@@ -251,12 +258,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
       final dayName = DateFormat('E').format(date).substring(0, 3);
 
-      // Count completed habits for this day
-      final completedCount = recordProvider.todayRecords
-          .where((r) => 
-            r.date.toIso8601String().split('T')[0] == dateStr && 
-            r.status == 'done'
-          )
+      // Count completed habits for this day from all records
+      final completedCount = recordProvider.records
+          .where((r) {
+            final recordDateStr = DateFormat('yyyy-MM-dd').format(r.date);
+            return recordDateStr == dateStr && r.status == 'done';
+          })
           .length;
 
       data.add(_ChartData(

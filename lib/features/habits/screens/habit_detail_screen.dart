@@ -10,7 +10,9 @@ import '../services/analytics_service.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../../config/theme.dart';
+import '../../auth/services/auth_service.dart';
 import 'add_edit_habit_screen.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 /// Detailed view of a single habit with history, streaks, and notes
 class HabitDetailScreen extends StatefulWidget {
@@ -24,6 +26,9 @@ class HabitDetailScreen extends StatefulWidget {
 
 class _HabitDetailScreenState extends State<HabitDetailScreen> {
   final TextEditingController _noteController = TextEditingController();
+  DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
+  bool _isMarkingDone = false;
 
   @override
   void initState() {
@@ -69,14 +74,18 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           final insights = AnalyticsService.getHabitInsights(records, widget.habit);
 
           return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHabitHeader(),
+                _buildMarkAsDoneButton(provider, records),
+                _buildCalendarView(records),
                 _buildInsightsSection(insights),
                 _buildWeeklyChart(records),
                 _buildStreakSection(insights),
                 _buildNotesSection(),
+                const SizedBox(height: 24), // Bottom padding for better scrolling
               ],
             ),
           );
@@ -193,6 +202,281 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMarkAsDoneButton(HabitRecordProvider provider, List<HabitRecord> records) {
+    final today = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(today);
+    
+    // Check if already marked as done today
+    final isDoneToday = records.any((record) {
+      final recordDate = DateFormat('yyyy-MM-dd').format(record.date);
+      return recordDate == todayStr && record.status == 'done';
+    });
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: isDoneToday || _isMarkingDone
+              ? null
+              : () => _markHabitAsDone(provider),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isDoneToday ? AppTheme.successColor : AppTheme.primaryColor,
+            disabledBackgroundColor: AppTheme.successColor.withOpacity(0.6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: isDoneToday ? 0 : 2,
+          ),
+          child: _isMarkingDone
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isDoneToday ? Icons.check_circle : Icons.check_circle_outline,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isDoneToday ? 'completed_today'.tr() : 'mark_as_done'.tr(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _markHabitAsDone(HabitRecordProvider provider) async {
+    setState(() => _isMarkingDone = true);
+
+    try {
+      // Get current user ID
+      final userId = await AuthService.getSavedUserId();
+      if (userId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('error_user_not_found'.tr())),
+          );
+        }
+        return;
+      }
+
+      // Create habit record
+      final record = HabitRecord(
+        habitID: widget.habit.habitID!,
+        userID: userId,
+        date: DateTime.now(),
+        progress: 1,
+        status: 'done',
+        createdAt: DateTime.now(),
+      );
+
+      await provider.createRecord(record);
+
+      // Reload records to refresh the UI in real-time
+      await provider.loadRecordsByHabit(widget.habit.habitID!);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('habit_marked_done'.tr(namedArgs: {'habit': widget.habit.name})),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('error_marking_habit'.tr()),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isMarkingDone = false);
+      }
+    }
+  }
+
+  Widget _buildCalendarView(List<HabitRecord> records) {
+    // Create a map of dates with completion status
+    final Map<DateTime, bool> completedDates = {};
+    for (final record in records) {
+      final date = DateTime(record.date.year, record.date.month, record.date.day);
+      completedDates[date] = record.status == 'done';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'progress_calendar'.tr(),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TableCalendar(
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                calendarFormat: CalendarFormat.month,
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                  titleTextStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                calendarStyle: CalendarStyle(
+                  todayDecoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  selectedDecoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                  markerDecoration: const BoxDecoration(
+                    color: AppTheme.successColor,
+                    shape: BoxShape.circle,
+                  ),
+                  markersMaxCount: 1,
+                ),
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                },
+                onPageChanged: (focusedDay) {
+                  _focusedDay = focusedDay;
+                },
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    final normalizedDay = DateTime(day.year, day.month, day.day);
+                    final isCompleted = completedDates[normalizedDay] == true;
+                    
+                    if (isCompleted) {
+                      return Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.successColor.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.successColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${day.day}',
+                            style: const TextStyle(
+                              color: AppTheme.successColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return null;
+                  },
+                  todayBuilder: (context, day, focusedDay) {
+                    final normalizedDay = DateTime(day.year, day.month, day.day);
+                    final isCompleted = completedDates[normalizedDay] == true;
+                    
+                    return Container(
+                      margin: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? AppTheme.successColor
+                            : AppTheme.primaryColor.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                        border: isCompleted
+                            ? Border.all(color: AppTheme.successColor.withOpacity(0.5), width: 2)
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${day.day}',
+                          style: TextStyle(
+                            color: isCompleted ? Colors.white : AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem(AppTheme.successColor, 'completed'.tr()),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(Colors.grey.shade300, 'not_completed'.tr()),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withOpacity(0.5), width: 2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ],
     );
   }
 

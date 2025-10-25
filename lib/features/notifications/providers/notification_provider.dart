@@ -43,25 +43,25 @@ class NotificationProvider extends ChangeNotifier {
       _notifications = reminders.map((reminder) {
         final time = reminder['Time'] as String;
         final habitName = reminder['HabitName'] as String;
-        final enabled = (reminder['Enabled'] as int) == 1;
+        final isActive = reminder['IsActive'] != null ? (reminder['IsActive'] as int) == 1 : true;
         final createdAt = reminder['CreatedAt'] != null 
             ? DateTime.parse(reminder['CreatedAt'] as String)
             : DateTime.now();
         
         return NotificationModel(
           id: reminder['ReminderID'].toString(),
-          title: enabled ? 'Habit Reminder' : 'Reminder Disabled',
-          message: enabled 
+          title: isActive ? 'Habit Reminder' : 'Reminder Disabled',
+          message: isActive 
               ? 'Time to complete your "$habitName" habit at $time'
               : 'Reminder for "$habitName" at $time is currently disabled',
           type: NotificationType.habit,
           createdAt: createdAt,
-          isRead: !enabled, // Disabled reminders are marked as "read"
+          isRead: !isActive, // Disabled reminders are marked as "read"
           data: {
             'habitId': reminder['HabitID'].toString(),
             'habitName': habitName,
             'reminderTime': time,
-            'enabled': enabled,
+            'enabled': isActive,
             'habitIcon': reminder['HabitIcon'],
             'habitColor': reminder['HabitColor'],
           },
@@ -89,12 +89,14 @@ class NotificationProvider extends ChangeNotifier {
     _notifications[index] = _notifications[index].copyWith(isRead: true);
     notifyListeners();
     
-    // Simulate API call
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      // In a real app, you would make an API call to update the notification status
+      // Update reminder status in database
+      final reminderId = int.tryParse(notificationId);
+      if (reminderId != null) {
+        await _reminderRepository.toggleReminderStatus(reminderId, false);
+      }
     } catch (e) {
-      // If the API call fails, revert the change
+      // If the update fails, revert the change
       _notifications[index] = _notifications[index].copyWith(isRead: false);
       _error = e.toString();
       notifyListeners();
@@ -111,12 +113,16 @@ class NotificationProvider extends ChangeNotifier {
         notification.copyWith(isRead: true)).toList();
     notifyListeners();
     
-    // Simulate API call
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      // In a real app, you would make an API call to update all notifications
+      // Update all reminders to be marked as inactive (read)
+      for (var notification in unreadNotifications) {
+        final reminderId = int.tryParse(notification.id);
+        if (reminderId != null) {
+          await _reminderRepository.toggleReminderStatus(reminderId, false);
+        }
+      }
     } catch (e) {
-      // If the API call fails, revert the change
+      // If the update fails, revert the change
       _notifications = _notifications.map((notification) {
         final wasUnread = unreadNotifications.any((n) => n.id == notification.id);
         return wasUnread ? notification.copyWith(isRead: false) : notification;
@@ -135,12 +141,14 @@ class NotificationProvider extends ChangeNotifier {
     _notifications.removeAt(index);
     notifyListeners();
     
-    // Simulate API call
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      // In a real app, you would make an API call to delete the notification
+      // Delete reminder from database
+      final reminderId = int.tryParse(notificationId);
+      if (reminderId != null) {
+        await _reminderRepository.deleteReminder(reminderId);
+      }
     } catch (e) {
-      // If the API call fails, revert the change
+      // If the delete fails, revert the change
       _notifications.insert(index, deletedNotification);
       _error = e.toString();
       notifyListeners();
@@ -155,12 +163,16 @@ class NotificationProvider extends ChangeNotifier {
     _notifications = [];
     notifyListeners();
     
-    // Simulate API call
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
-      // In a real app, you would make an API call to delete all notifications
+      // Delete all reminders from database
+      for (var notification in oldNotifications) {
+        final reminderId = int.tryParse(notification.id);
+        if (reminderId != null) {
+          await _reminderRepository.deleteReminder(reminderId);
+        }
+      }
     } catch (e) {
-      // If the API call fails, revert the change
+      // If the delete fails, revert the change
       _notifications = oldNotifications;
       _error = e.toString();
       notifyListeners();

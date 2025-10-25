@@ -17,10 +17,36 @@ import 'package:daily_habits/features/achievements/providers/achievement_provide
 import 'package:daily_habits/features/chat/providers/chat_provider.dart';
 import 'package:daily_habits/shared/widgets/app_wrapper.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:daily_habits/features/habits/services/reminder_manager_service.dart';
+import 'package:daily_habits/features/habits/services/background_service.dart';
+import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  
+  // Initialize reminder manager service
+  try {
+    final reminderManager = ReminderManagerService();
+    await reminderManager.initialize();
+    
+    // Request notification permissions
+    final permissionGranted = await reminderManager.requestPermissions();
+    if (permissionGranted) {
+      debugPrint('✅ Notification permissions granted');
+      // Reschedule all active reminders on app start
+      await reminderManager.rescheduleAllReminders();
+      
+      // Initialize background service for Android only
+      if (Platform.isAndroid) {
+        await BackgroundService.initialize();
+      }
+    } else {
+      debugPrint('⚠️ Notification permissions denied');
+    }
+  } catch (e) {
+    debugPrint('❌ Error initializing reminder manager: $e');
+  }
   
   // Load environment variables
   try {

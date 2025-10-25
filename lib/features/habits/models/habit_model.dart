@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Habit categories
 enum HabitCategory {
   exercise,
@@ -165,15 +167,43 @@ class Habit {
 
   /// Check if habit should be shown on a specific date
   bool isScheduledFor(DateTime date) {
+    debugPrint('🔍 Checking if habit "$name" is scheduled for ${date.weekday} (${_getWeekdayName(date.weekday)})');
+    debugPrint('🔍 Schedule type: ${schedule.type}');
+    debugPrint('🔍 Schedule days: ${schedule.days}');
+    
     switch (schedule.type) {
       case ScheduleType.daily:
+        debugPrint('✅ Daily habit - always shown');
         return true;
       case ScheduleType.specificDays:
-        if (schedule.days == null) return true;
-        return schedule.days!.contains(date.weekday);
+        if (schedule.days == null) {
+          debugPrint('✅ No specific days set - showing habit');
+          return true;
+        }
+        final isScheduled = schedule.days!.contains(date.weekday);
+        debugPrint(isScheduled ? '✅ Habit IS scheduled for this day' : '❌ Habit NOT scheduled for this day');
+        return isScheduled;
       case ScheduleType.custom:
-        if (schedule.days == null) return true;
-        return schedule.days!.contains(date.weekday);
+        if (schedule.days == null) {
+          debugPrint('✅ No custom days set - showing habit');
+          return true;
+        }
+        final isScheduled = schedule.days!.contains(date.weekday);
+        debugPrint(isScheduled ? '✅ Habit IS scheduled for this day' : '❌ Habit NOT scheduled for this day');
+        return isScheduled;
+    }
+  }
+  
+  String _getWeekdayName(int weekday) {
+    switch (weekday) {
+      case 1: return 'Monday';
+      case 2: return 'Tuesday';
+      case 3: return 'Wednesday';
+      case 4: return 'Thursday';
+      case 5: return 'Friday';
+      case 6: return 'Saturday';
+      case 7: return 'Sunday';
+      default: return 'Unknown';
     }
   }
 

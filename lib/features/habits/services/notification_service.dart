@@ -1,12 +1,19 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter/foundation.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../models/habit_model.dart';
+import '../models/reminder_model.dart';
+import '../models/habit_record_model.dart';
+import '../repositories/habit_record_repository.dart';
+import '../../auth/services/auth_service.dart';
 
-/// Enhanced notification service with multi-time reminder support
+/// Enhanced notification service with actionable buttons
+/// Supports: Mark Done, Snooze, Dismiss actions
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -14,15 +21,38 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  
+  // Action IDs
+  static const String actionMarkDone = 'MARK_DONE';
+  static const String actionSnooze = 'SNOOZE';
+  static const String actionDismiss = 'DISMISS';
+  
+  // Notification channel
+  static const String channelId = 'habit_reminders';
+  static const String channelName = 'Habit Reminders';
+  static const String channelDescription = 'Notifications for habit reminders';
 
-  /// Initialize notification service
-  Future<void> initialize() async {
+  /// Initialize notification service with action handlers
+  Future<void> initialize({
+    Function(int habitId, String habitName)? onMarkDone,
+    Function(int habitId, int reminderId)? onSnooze,
+  }) async {
     if (_initialized) return;
 
     // Initialize timezone
     tz.initializeTimeZones();
+    
+    // Set local timezone
+    try {
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      debugPrint('📍 Timezone set to: $timeZoneName');
+    } catch (e) {
+      debugPrint('⚠️ Error setting timezone: $e');
+      tz.setLocalLocation(tz.getLocation('UTC'));
+    }
 
-    // Android initialization settings
+    // Android initialization settings with actions
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS initialization settings
@@ -39,25 +69,171 @@ class NotificationService {
 
     await _notifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        _handleNotificationResponse(response, onMarkDone, onSnooze);
+      },
+      onDidReceiveBackgroundNotificationResponse: _handleBackgroundNotificationResponse,
     );
 
+    // Create notification channel for Android
+    if (Platform.isAndroid) {
+      await _createNotificationChannel();
+    }
+
     _initialized = true;
-    debugPrint('Notification service initialized');
+    debugPrint('✅ Enhanced notification service initialized');
   }
 
-  /// Handle notification tap
-  void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
-    // TODO: Navigate to habit detail screen
+  /// Create Android notification channel with sound
+  Future<void> _createNotificationChannel() async {
+    const androidChannel = AndroidNotificationChannel(
+      channelId,
+      channelName,
+      description: channelDescription,
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+    );
+
+    await _notifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(androidChannel);
+    
+    debugPrint('📢 Android notification channel created');
+  }
+
+  /// Handle notification response (foreground/background)
+  void _handleNotificationResponse(
+    NotificationResponse response,
+    Function(int, String)? onMarkDone,
+    Function(int, int)? onSnooze,
+  ) {
+    debugPrint('🔔 Notification response: ${response.actionId}, payload: ${response.payload}');
+    
+    if (response.payload == null) return;
+    
+    final parts = response.payload!.split('|');
+    if (parts.length < 3) return;
+    
+    final habitId = int.tryParse(parts[0]);
+    final reminderId = int.tryParse(parts[1]);
+    final habitName = parts[2];
+    
+    if (habitId == null || reminderId == null) return;
+
+    switch (response.actionId) {
+      case actionMarkDone:
+        debugPrint('✅ Mark Done action triggered for habit: $habitName');
+        _handleMarkDone(habitId, habitName);
+        onMarkDone?.call(habitId, habitName);
+        break;
+      case actionSnooze:
+        debugPrint('⏰ Snooze action triggered for habit: $habitName');
+        onSnooze?.call(habitId, reminderId);
+        break;
+      case actionDismiss:
+        debugPrint('❌ Dismiss action triggered');
+        break;
+      default:
+        // Notification tapped (no action button)
+        debugPrint('👆 Notification tapped - open habit details');
+        // TODO: Navigate to habit details
+    }
+  }
+
+  /// Background notification response handler (must be top-level function)
+  @pragma('vm:entry-point')
+  static void _handleBackgroundNotificationResponse(NotificationResponse response) {
+    debugPrint('🔔 Background notification response: ${response.actionId}');
+    // Handle background actions here
+  }
+
+  /// Handle Mark Done action - insert habit record
+  Future<void> _handleMarkDone(int habitId, String habitName) async {
+    try {
+      final repository = HabitRecordRepository();
+      final today = DateTime.now();
+      
+      // Get actual logged-in user ID
+      final userId = await AuthService.getSavedUserId();
+      if (userId == null) {
+        debugPrint('⚠️ No logged-in user found');
+        return;
+      }
+      
+      // Check if record already exists
+      final existing = await repository.getRecordByDate(habitId, today);
+      
+      if (existing == null) {
+        // Create new record with actual user ID
+        final record = HabitRecord(
+          habitID: habitId,
+          userID: userId,
+          date: today,
+          progress: 1,
+          status: 'done',
+          createdAt: DateTime.now(),
+        );
+        
+        await repository.createRecord(record);
+        
+        debugPrint('✅ Habit record created for $habitName (User: $userId)');
+        
+        // Show confirmation notification
+        await _showConfirmationNotification(habitName);
+      } else {
+        debugPrint('ℹ️ Habit already marked as done today');
+      }
+    } catch (e) {
+      debugPrint('❌ Error marking habit as done: $e');
+    }
+  }
+
+  /// Show confirmation notification after marking done
+  Future<void> _showConfirmationNotification(String habitName) async {
+    const notificationDetails = NotificationDetails(
+      android: AndroidNotificationDetails(
+        channelId,
+        channelName,
+        channelDescription: channelDescription,
+        importance: Importance.low,
+        priority: Priority.low,
+        playSound: false,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentSound: false,
+      ),
+    );
+
+    await _notifications.show(
+      DateTime.now().millisecondsSinceEpoch % 100000,
+      'habit_completed'.tr(),
+      'habit_marked_done'.tr(namedArgs: {'habit': habitName}),
+      notificationDetails,
+    );
   }
 
   /// Request notification permissions
   Future<bool> requestPermissions() async {
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      final status = await Permission.notification.request();
-      return status.isGranted;
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+    if (Platform.isAndroid) {
+      // Request notification permission
+      final notificationStatus = await Permission.notification.request();
+      debugPrint('📱 Notification permission: ${notificationStatus.isGranted}');
+      
+      // Check and request exact alarm permission for Android 12+
+      final exactAlarmStatus = await Permission.scheduleExactAlarm.status;
+      debugPrint('⏰ Exact alarm permission status: $exactAlarmStatus');
+      
+      if (exactAlarmStatus.isDenied || exactAlarmStatus.isPermanentlyDenied) {
+        debugPrint('⚠️ Exact alarm permission not granted - notifications may not work');
+        debugPrint('💡 User needs to enable "Alarms & reminders" in app settings');
+        // On Android 13+, this opens the exact alarm settings page
+        await Permission.scheduleExactAlarm.request();
+      }
+      
+      return notificationStatus.isGranted;
+    } else if (Platform.isIOS) {
       final result = await _notifications
           .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, badge: true, sound: true);
@@ -66,298 +242,295 @@ class NotificationService {
     return true;
   }
 
-  /// Schedule notifications for a habit
-  Future<void> scheduleHabitNotifications(Habit habit) async {
-    if (!_initialized) await initialize();
-
-    // Check if habitID exists
-    if (habit.habitID == null) {
-      debugPrint('Cannot schedule notifications: habitID is null');
-      return;
-    }
-
-    // Cancel existing notifications for this habit
-    await cancelHabitNotifications(habit.habitID!);
-
-    if (habit.reminderTimes == null || habit.reminderTimes!.isEmpty) {
-      return;
-    }
-
-    // Schedule notification for each reminder time
-    for (int i = 0; i < habit.reminderTimes!.length; i++) {
-      final timeString = habit.reminderTimes![i];
-      final notificationId = _generateNotificationId(habit.habitID!, i);
-
-      try {
-        await _scheduleNotification(
-          notificationId: notificationId,
-          habit: habit,
-          timeString: timeString,
-        );
-        debugPrint('Scheduled notification $notificationId for ${habit.name} at $timeString');
-      } catch (e) {
-        debugPrint('Error scheduling notification: $e');
-      }
-    }
-  }
-
-  /// Schedule a single notification
-  Future<void> _scheduleNotification({
-    required int notificationId,
-    required Habit habit,
-    required String timeString,
-  }) async {
-    final timeParts = timeString.split(':');
-    if (timeParts.length != 2) return;
-
-    final hour = int.tryParse(timeParts[0]);
-    final minute = int.tryParse(timeParts[1]);
-    if (hour == null || minute == null) return;
-
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      minute,
-    );
-
-    // If the scheduled time has passed today, schedule for tomorrow
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-
-    // Notification details
-    final androidDetails = AndroidNotificationDetails(
-      'habit_reminders',
-      'Habit Reminders',
-      channelDescription: 'Reminders for daily habits',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      enableVibration: true,
-      playSound: true,
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    final details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    // Schedule based on habit schedule type
-    if (habit.schedule.type == ScheduleType.daily) {
-      // Daily notification
-      await _notifications.zonedSchedule(
-        notificationId,
-        habit.name,
-        _getNotificationBody(habit),
-        scheduledDate,
-        details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
-    } else if (habit.schedule.type == ScheduleType.specificDays) {
-      // Schedule for specific days
-      final days = habit.schedule.days ?? [];
-      for (final day in days) {
-        final daysUntilNext = _daysUntilWeekday(now.weekday, day);
-        final nextDate = scheduledDate.add(Duration(days: daysUntilNext));
-
-        await _notifications.zonedSchedule(
-          notificationId + (day * 1000), // Unique ID per day
-          habit.name,
-          _getNotificationBody(habit),
-          nextDate,
-          details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-        );
-      }
-    }
-  }
-
-  /// Get notification body text
-  String _getNotificationBody(Habit habit) {
-    switch (habit.targetType) {
-      case TargetType.yesNo:
-        return 'Time to complete your habit!';
-      case TargetType.count:
-        return 'Complete ${habit.target}x today';
-      case TargetType.duration:
-        return 'Spend ${habit.target} minutes on this habit';
-    }
-  }
-
-  /// Calculate days until next weekday
-  int _daysUntilWeekday(int currentWeekday, int targetWeekday) {
-    int daysUntil = targetWeekday - currentWeekday;
-    if (daysUntil <= 0) {
-      daysUntil += 7;
-    }
-    return daysUntil;
-  }
-
-  /// Generate unique notification ID
-  int _generateNotificationId(int habitId, int reminderIndex) {
-    return habitId * 100 + reminderIndex;
-  }
-
-  /// Legacy method for backward compatibility
-  Future<void> scheduleHabitReminder({
-    required int id,
-    required String title,
-    required String body,
-    required DateTime scheduledTime,
-  }) async {
-    if (!_initialized) await initialize();
-
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'habit_reminders',
-          'Habit Reminders',
-          channelDescription: 'Notifications for habit reminders',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
-  }
-
-  /// Cancel all notifications for a habit
-  Future<void> cancelHabitNotifications(int habitId) async {
-    if (!_initialized) await initialize();
-
-    // Cancel up to 10 possible reminder times
-    for (int i = 0; i < 10; i++) {
-      final notificationId = _generateNotificationId(habitId, i);
-      await _notifications.cancel(notificationId);
-      
-      // Also cancel day-specific notifications
-      for (int day = 1; day <= 7; day++) {
-        await _notifications.cancel(notificationId + (day * 1000));
-      }
-    }
-    debugPrint('Cancelled notifications for habit $habitId');
-  }
-
-  /// Cancel a single notification
-  Future<void> cancelNotification(int id) async {
-    if (!_initialized) await initialize();
-    await _notifications.cancel(id);
-  }
-
-  /// Cancel all notifications
-  Future<void> cancelAllNotifications() async {
-    if (!_initialized) await initialize();
-    await _notifications.cancelAll();
-    debugPrint('Cancelled all notifications');
-  }
-
-  /// Show immediate notification (for testing or milestones)
-  Future<void> showImmediateNotification({
-    required int id,
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    if (!_initialized) await initialize();
-
-    const androidDetails = AndroidNotificationDetails(
-      'habit_achievements',
-      'Achievements',
-      channelDescription: 'Notifications for habit achievements',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.show(id, title, body, details, payload: payload);
-  }
-
-  /// Get pending notifications
-  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-    if (!_initialized) await initialize();
-    return await _notifications.pendingNotificationRequests();
-  }
-
-  /// Check if notifications are enabled
-  Future<bool> areNotificationsEnabled() async {
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return await Permission.notification.isGranted;
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final result = await _notifications
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-          ?.checkPermissions();
-      return result?.isEnabled ?? false;
+  /// Check if permissions are granted
+  Future<bool> arePermissionsGranted() async {
+    if (Platform.isAndroid) {
+      final notificationGranted = await Permission.notification.isGranted;
+      final exactAlarmGranted = await Permission.scheduleExactAlarm.isGranted;
+      debugPrint('📱 Notification: $notificationGranted, ⏰ Exact Alarm: $exactAlarmGranted');
+      return notificationGranted && exactAlarmGranted;
+    } else if (Platform.isIOS) {
+      // iOS doesn't have a direct way to check, assume granted if requested before
+      return true;
     }
     return true;
   }
 
-  /// Show milestone notification
-  Future<void> showMilestoneNotification({
-    required String habitName,
-    required int streak,
+  /// Schedule a reminder notification
+  Future<void> scheduleReminder({
+    required HabitReminder reminder,
+    required Habit habit,
   }) async {
-    await showImmediateNotification(
-      id: 999999,
-      title: '🎉 Milestone Reached!',
-      body: '$habitName: $streak days streak! Keep it up!',
-    );
-  }
+    if (!_initialized) await initialize();
 
-  /// Show daily summary notification
-  Future<void> showDailySummaryNotification({
-    required int completed,
-    required int total,
-  }) async {
-    await showImmediateNotification(
-      id: 999998,
-      title: 'Daily Summary',
-      body: 'You completed $completed out of $total habits today!',
-    );
-  }
+    final nextScheduledTime = reminder.getNextScheduledTime();
+    if (nextScheduledTime == null) {
+      debugPrint('⚠️ No next scheduled time for reminder ${reminder.reminderID}');
+      return;
+    }
 
-  /// Reschedule all habit notifications
-  Future<void> rescheduleAllNotifications(List<Habit> habits) async {
-    await cancelAllNotifications();
+    final notificationId = _generateNotificationId(habit.habitID!, reminder.reminderID ?? 0);
     
-    for (final habit in habits) {
-      if (habit.isActive && habit.reminderTimes != null) {
-        await scheduleHabitNotifications(habit);
+    // Create notification with action buttons
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+      showWhen: true,
+      ticker: 'Habit Reminder',
+      color: _parseColor(habit.color),
+      styleInformation: BigTextStyleInformation(
+        'حان وقت العمل على ${habit.name}!',
+        contentTitle: habit.name,
+      ),
+      actions: [
+        const AndroidNotificationAction(
+          actionMarkDone,
+          'تم الإنجاز',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        const AndroidNotificationAction(
+          actionSnooze,
+          'غفوة',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ],
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      categoryIdentifier: 'habitReminder',
+    );
+
+    final notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Payload format: habitId|reminderId|habitName
+    final payload = '${habit.habitID}|${reminder.reminderID}|${habit.name}';
+
+    try {
+      final scheduledDate = tz.TZDateTime.from(nextScheduledTime, tz.local);
+      final now = tz.TZDateTime.now(tz.local);
+      
+      debugPrint('🕐 Current time: $now');
+      debugPrint('⏰ Scheduled time: $scheduledDate');
+      debugPrint('⏱️ Time until notification: ${scheduledDate.difference(now).inMinutes} minutes');
+      
+      // Check if scheduled time is in the future
+      if (scheduledDate.isBefore(now)) {
+        debugPrint('⚠️ Scheduled time is in the past! Adjusting to next occurrence...');
+      }
+      
+      await _notifications.zonedSchedule(
+        notificationId,
+        habit.name,
+        'reminder_message'.tr(namedArgs: {'habit': habit.name}),
+        scheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+        matchDateTimeComponents: reminder.isRecurring ? DateTimeComponents.time : null,
+      );
+
+      debugPrint('✅ Scheduled reminder for ${habit.name} at $scheduledDate (ID: $notificationId)');
+      
+      // Verify the notification was scheduled
+      final pending = await _notifications.pendingNotificationRequests();
+      final scheduled = pending.where((n) => n.id == notificationId).toList();
+      if (scheduled.isEmpty) {
+        debugPrint('⚠️ WARNING: Notification not found in pending list!');
+      } else {
+        debugPrint('✅ Verified: Notification is in pending list');
+      }
+    } catch (e) {
+      debugPrint('❌ Error scheduling reminder: $e');
+      debugPrint('❌ Error type: ${e.runtimeType}');
+    }
+  }
+
+  /// Schedule multiple reminders for a habit
+  Future<void> scheduleHabitReminders({
+    required List<HabitReminder> reminders,
+    required Habit habit,
+  }) async {
+    for (final reminder in reminders) {
+      if (reminder.isActive) {
+        await scheduleReminder(reminder: reminder, habit: habit);
       }
     }
+  }
+
+  /// Cancel a specific reminder
+  Future<void> cancelReminder(int habitId, int reminderId) async {
+    final notificationId = _generateNotificationId(habitId, reminderId);
+    await _notifications.cancel(notificationId);
+    debugPrint('🚫 Cancelled reminder notification $notificationId');
+  }
+
+  /// Cancel all reminders for a habit
+  Future<void> cancelHabitReminders(int habitId) async {
+    // Cancel up to 10 possible reminders per habit
+    for (int i = 0; i < 10; i++) {
+      final notificationId = _generateNotificationId(habitId, i);
+      await _notifications.cancel(notificationId);
+    }
+    debugPrint('🚫 Cancelled all reminders for habit $habitId');
+  }
+
+  /// Cancel all notifications
+  Future<void> cancelAllNotifications() async {
+    await _notifications.cancelAll();
+    debugPrint('🚫 Cancelled all notifications');
+  }
+
+  /// Show immediate test notification
+  Future<void> showTestNotification({
+    required String habitName,
+    required int habitId,
+  }) async {
+    if (!_initialized) await initialize();
+
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+      showWhen: true,
+      ticker: 'Habit Reminder',
+      styleInformation: BigTextStyleInformation(''),
+      actions: [
+        AndroidNotificationAction(
+          actionMarkDone,
+          'تم الإنجاز',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          actionSnooze,
+          'غفوة',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ],
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      DateTime.now().millisecondsSinceEpoch % 100000,
+      habitName,
+      'حان وقت العمل على $habitName!',
+      notificationDetails,
+      payload: '$habitId|0|$habitName',
+    );
+
+    debugPrint('📢 Test notification shown for $habitName');
+  }
+
+  /// Snooze a reminder (reschedule for X minutes later)
+  Future<void> snoozeReminder({
+    required HabitReminder reminder,
+    required Habit habit,
+    int? customMinutes,
+  }) async {
+    final snoozeMinutes = customMinutes ?? reminder.snoozeMinutes;
+    final snoozeTime = DateTime.now().add(Duration(minutes: snoozeMinutes));
     
-    debugPrint('Rescheduled notifications for ${habits.length} habits');
+    final notificationId = _generateNotificationId(habit.habitID!, reminder.reminderID ?? 0);
+    
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      actions: [
+        AndroidNotificationAction(
+          actionMarkDone,
+          'mark_done'.tr(),
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ],
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    final payload = '${habit.habitID}|${reminder.reminderID}|${habit.name}';
+
+    try {
+      final scheduledDate = tz.TZDateTime.from(snoozeTime, tz.local);
+      
+      await _notifications.zonedSchedule(
+        notificationId,
+        habit.name,
+        'snoozed_reminder_message'.tr(namedArgs: {'habit': habit.name}),
+        scheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+
+      debugPrint('⏰ Snoozed reminder for ${habit.name} to $scheduledDate');
+    } catch (e) {
+      debugPrint('❌ Error snoozing reminder: $e');
+    }
+  }
+
+  /// Get pending notifications
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return await _notifications.pendingNotificationRequests();
+  }
+
+  /// Generate unique notification ID
+  int _generateNotificationId(int habitId, int reminderId) {
+    return (habitId * 1000) + reminderId;
+  }
+
+  /// Parse color string to Color object
+  Color? _parseColor(String? colorString) {
+    if (colorString == null) return null;
+    try {
+      final cleanColor = colorString.replaceFirst('#', '0xff');
+      return Color(int.parse(cleanColor));
+    } catch (e) {
+      return null;
+    }
   }
 }

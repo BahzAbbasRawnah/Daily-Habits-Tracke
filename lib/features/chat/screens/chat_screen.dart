@@ -50,14 +50,12 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Colors.grey[900]
-          : Colors.grey[100],
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        elevation: 1,
-        backgroundColor: AppTheme.primaryColor,
+        elevation: 0,
+        backgroundColor: AppTheme.streakColor,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.surfaceLightColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -71,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               child: const Icon(
                 Icons.smart_toy_rounded,
-                color: Colors.white,
+                color: AppTheme.surfaceLightColor,
                 size: 24,
               ),
             ),
@@ -83,7 +81,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Text(
                     'ai_assistant'.tr(),
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.surfaceLightColor,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -91,7 +89,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Text(
                     'online'.tr(),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: AppTheme.surfaceLightColor.withOpacity(0.8),
                       fontSize: 12,
                     ),
                   ),
@@ -102,7 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
+            icon: const Icon(Icons.more_vert, color: AppTheme.surfaceLightColor),
             onSelected: (value) {
               if (value == 'clear') {
                 _showClearChatDialog(context);

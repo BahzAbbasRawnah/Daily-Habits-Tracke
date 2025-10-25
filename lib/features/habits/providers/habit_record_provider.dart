@@ -113,6 +113,19 @@ class HabitRecordProvider extends ChangeNotifier {
     }
   }
 
+  /// Load records for a specific date range
+  Future<void> loadRecordsByDateRange(DateTime startDate, DateTime endDate) async {
+    try {
+      // Get user ID from auth service or use 1 as default
+      final userID = 1; // TODO: Get from AuthService
+      _records = await _repository.getRecordsByDateRange(userID, startDate, endDate);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
   /// Get today's record for a specific habit
   HabitRecord? getTodayRecord(int habitID) {
     final today = DateTime.now();

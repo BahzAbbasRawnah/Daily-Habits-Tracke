@@ -3,6 +3,9 @@ import 'package:daily_habits/config/constants.dart';
 import 'package:daily_habits/features/onboarding/screens/onboarding_screen.dart';
 import 'package:daily_habits/features/habits/screens/habits_list_screen.dart';
 import 'package:daily_habits/features/habits/screens/add_edit_habit_screen.dart';
+import 'package:daily_habits/features/habits/screens/habit_detail_screen.dart';
+import 'package:daily_habits/features/habits/providers/habit_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:daily_habits/features/settings/screens/settings_screen.dart';
 import 'package:daily_habits/features/profile/screens/profile_screen.dart';
 import 'package:daily_habits/features/notifications/screens/notifications_screen.dart';
@@ -163,12 +166,46 @@ class AppRoutes {
         );
 
       case habitDetails:
-        return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(
-              child: Text('Habit Details Screen - Coming Soon'),
+        final habitIdArg = args;
+        if (habitIdArg == null) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(
+                child: Text('Habit ID is required'),
+              ),
             ),
-          ),
+          );
+        }
+        
+        // Parse habitId as int
+        final int habitId;
+        if (habitIdArg is int) {
+          habitId = habitIdArg;
+        } else if (habitIdArg is String) {
+          habitId = int.tryParse(habitIdArg) ?? 0;
+        } else {
+          habitId = 0;
+        }
+        
+        if (habitId == 0) {
+          return MaterialPageRoute(
+            builder: (_) => const Scaffold(
+              body: Center(
+                child: Text('Invalid Habit ID'),
+              ),
+            ),
+          );
+        }
+        
+        return MaterialPageRoute(
+          builder: (context) {
+            final habitProvider = Provider.of<HabitProvider>(context, listen: false);
+            final habit = habitProvider.habits.firstWhere(
+              (h) => h.habitID == habitId,
+              orElse: () => throw Exception('Habit not found'),
+            );
+            return HabitDetailScreen(habit: habit);
+          },
         );
 
       case chat:

@@ -9,6 +9,7 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: CustomAppBar(
         title: 'about_app'.tr(),
         showBackButton: true,

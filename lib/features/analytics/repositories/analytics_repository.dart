@@ -27,7 +27,7 @@ class AnalyticsRepository {
     final todayResult = await database.rawQuery('''
       SELECT COUNT(*) as completed
       FROM Habit_Records
-      WHERE UserID = ? AND Date >= ? AND Status = 'completed'
+      WHERE UserID = ? AND Date >= ? AND Status = 'done'
     ''', [userID, startOfDay.toIso8601String()]);
     
     final completedToday = todayResult.first['completed'] as int? ?? 0;
@@ -36,7 +36,7 @@ class AnalyticsRepository {
     final totalResult = await database.rawQuery('''
       SELECT COUNT(*) as total
       FROM Habit_Records
-      WHERE UserID = ? AND Status = 'completed'
+      WHERE UserID = ? AND Status = 'done'
     ''', [userID]);
     
     final totalCompletions = totalResult.first['total'] as int? ?? 0;
@@ -107,7 +107,7 @@ class AnalyticsRepository {
         WHERE UserID = ? 
           AND Date >= ? 
           AND Date < ?
-          AND Status = 'completed'
+          AND Status = 'done'
       ''', [userID, startOfDay.toIso8601String(), endOfDay.toIso8601String()]);
       
       // Get total habits for this day
@@ -142,7 +142,7 @@ class AnalyticsRepository {
     final result = await database.rawQuery('''
       SELECT DISTINCT DATE(Date) as date
       FROM Habit_Records
-      WHERE UserID = ? AND Status = 'completed'
+      WHERE UserID = ? AND Status = 'done'
       ORDER BY date DESC
     ''', [userID]);
     
@@ -202,7 +202,7 @@ class AnalyticsRepository {
       SELECT 
         h.HabitID,
         h.Name,
-        COUNT(CASE WHEN hr.Status = 'completed' THEN 1 END) as completions,
+        COUNT(CASE WHEN hr.Status = 'done' THEN 1 END) as completions,
         MAX(hr.Date) as lastCompleted
       FROM Habits h
       LEFT JOIN Habit_Records hr ON h.HabitID = hr.HabitID
@@ -254,7 +254,7 @@ class AnalyticsRepository {
     final result = await database.rawQuery('''
       SELECT DISTINCT DATE(Date) as date
       FROM Habit_Records
-      WHERE HabitID = ? AND Status = 'completed'
+      WHERE HabitID = ? AND Status = 'done'
       ORDER BY date DESC
     ''', [habitID]);
     
