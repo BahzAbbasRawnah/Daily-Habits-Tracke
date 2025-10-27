@@ -19,14 +19,15 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   bool _initialized = false;
-  
+
   // Action IDs
   static const String actionMarkDone = 'MARK_DONE';
   static const String actionSnooze = 'SNOOZE';
   static const String actionDismiss = 'DISMISS';
-  
+
   // Notification channel
   static const String channelId = 'habit_reminders';
   static const String channelName = 'Habit Reminders';
@@ -41,7 +42,7 @@ class NotificationService {
 
     // Initialize timezone
     tz.initializeTimeZones();
-    
+
     // Set local timezone
     try {
       final String timeZoneName = await FlutterTimezone.getLocalTimezone();
@@ -53,7 +54,8 @@ class NotificationService {
     }
 
     // Android initialization settings with actions
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS initialization settings
     const iosSettings = DarwinInitializationSettings(
@@ -72,12 +74,14 @@ class NotificationService {
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         _handleNotificationResponse(response, onMarkDone, onSnooze);
       },
-      onDidReceiveBackgroundNotificationResponse: _handleBackgroundNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse:
+          _handleBackgroundNotificationResponse,
     );
 
     // Create notification channel for Android
     if (Platform.isAndroid) {
       await _createNotificationChannel();
+      await checkExactAlarmStatus(); // Diagnose exact alarm permission
     }
 
     _initialized = true;
@@ -94,13 +98,17 @@ class NotificationService {
       playSound: true,
       enableVibration: true,
       enableLights: true,
+      showBadge: true,
     );
 
     await _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
-    
+
     debugPrint('📢 Android notification channel created');
+    debugPrint('📢 Channel ID: $channelId');
+    debugPrint('📢 Importance: ${androidChannel.importance}');
   }
 
   /// Handle notification response (foreground/background)
@@ -109,17 +117,18 @@ class NotificationService {
     Function(int, String)? onMarkDone,
     Function(int, int)? onSnooze,
   ) {
-    debugPrint('🔔 Notification response: ${response.actionId}, payload: ${response.payload}');
-    
+    debugPrint(
+        '🔔 Notification response: ${response.actionId}, payload: ${response.payload}');
+
     if (response.payload == null) return;
-    
+
     final parts = response.payload!.split('|');
     if (parts.length < 3) return;
-    
+
     final habitId = int.tryParse(parts[0]);
     final reminderId = int.tryParse(parts[1]);
     final habitName = parts[2];
-    
+
     if (habitId == null || reminderId == null) return;
 
     switch (response.actionId) {
@@ -138,13 +147,14 @@ class NotificationService {
       default:
         // Notification tapped (no action button)
         debugPrint('👆 Notification tapped - open habit details');
-        // TODO: Navigate to habit details
+      // TODO: Navigate to habit details
     }
   }
 
   /// Background notification response handler (must be top-level function)
   @pragma('vm:entry-point')
-  static void _handleBackgroundNotificationResponse(NotificationResponse response) {
+  static void _handleBackgroundNotificationResponse(
+      NotificationResponse response) {
     debugPrint('🔔 Background notification response: ${response.actionId}');
     // Handle background actions here
   }
@@ -154,17 +164,17 @@ class NotificationService {
     try {
       final repository = HabitRecordRepository();
       final today = DateTime.now();
-      
+
       // Get actual logged-in user ID
       final userId = await AuthService.getSavedUserId();
       if (userId == null) {
         debugPrint('⚠️ No logged-in user found');
         return;
       }
-      
+
       // Check if record already exists
       final existing = await repository.getRecordByDate(habitId, today);
-      
+
       if (existing == null) {
         // Create new record with actual user ID
         final record = HabitRecord(
@@ -175,11 +185,11 @@ class NotificationService {
           status: 'done',
           createdAt: DateTime.now(),
         );
-        
+
         await repository.createRecord(record);
-        
+
         debugPrint('✅ Habit record created for $habitName (User: $userId)');
-        
+
         // Show confirmation notification
         await _showConfirmationNotification(habitName);
       } else {
@@ -220,22 +230,25 @@ class NotificationService {
       // Request notification permission
       final notificationStatus = await Permission.notification.request();
       debugPrint('📱 Notification permission: ${notificationStatus.isGranted}');
-      
+
       // Check and request exact alarm permission for Android 12+
       final exactAlarmStatus = await Permission.scheduleExactAlarm.status;
       debugPrint('⏰ Exact alarm permission status: $exactAlarmStatus');
-      
+
       if (exactAlarmStatus.isDenied || exactAlarmStatus.isPermanentlyDenied) {
-        debugPrint('⚠️ Exact alarm permission not granted - notifications may not work');
-        debugPrint('💡 User needs to enable "Alarms & reminders" in app settings');
+        debugPrint(
+            '⚠️ Exact alarm permission not granted - notifications may not work');
+        debugPrint(
+            '💡 User needs to enable "Alarms & reminders" in app settings');
         // On Android 13+, this opens the exact alarm settings page
         await Permission.scheduleExactAlarm.request();
       }
-      
+
       return notificationStatus.isGranted;
     } else if (Platform.isIOS) {
       final result = await _notifications
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       return result ?? false;
     }
@@ -247,13 +260,33 @@ class NotificationService {
     if (Platform.isAndroid) {
       final notificationGranted = await Permission.notification.isGranted;
       final exactAlarmGranted = await Permission.scheduleExactAlarm.isGranted;
-      debugPrint('📱 Notification: $notificationGranted, ⏰ Exact Alarm: $exactAlarmGranted');
+      debugPrint(
+          '📱 Notification: $notificationGranted, ⏰ Exact Alarm: $exactAlarmGranted');
       return notificationGranted && exactAlarmGranted;
     } else if (Platform.isIOS) {
       // iOS doesn't have a direct way to check, assume granted if requested before
       return true;
     }
     return true;
+  }
+
+  /// Diagnostic: Check exact alarm status on Android 13+
+  Future<void> checkExactAlarmStatus() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.scheduleExactAlarm.status;
+      debugPrint('🔍 Exact Alarm Permission Status: $status');
+      debugPrint('🔍 Is Granted: ${status.isGranted}');
+      debugPrint('🔍 Is Denied: ${status.isDenied}');
+      debugPrint('🔍 Is Permanently Denied: ${status.isPermanentlyDenied}');
+
+      if (!status.isGranted) {
+        debugPrint('⚠️ Exact alarms are NOT enabled!');
+        debugPrint(
+            '💡 User needs to enable in Settings → Apps → Habits Tracker → Alarms & reminders');
+      } else {
+        debugPrint('✅ Exact alarms ARE enabled');
+      }
+    }
   }
 
   /// Schedule a reminder notification
@@ -265,12 +298,14 @@ class NotificationService {
 
     final nextScheduledTime = reminder.getNextScheduledTime();
     if (nextScheduledTime == null) {
-      debugPrint('⚠️ No next scheduled time for reminder ${reminder.reminderID}');
+      debugPrint(
+          '⚠️ No next scheduled time for reminder ${reminder.reminderID}');
       return;
     }
 
-    final notificationId = _generateNotificationId(habit.habitID!, reminder.reminderID ?? 0);
-    
+    final notificationId =
+        _generateNotificationId(habit.habitID!, reminder.reminderID ?? 0);
+
     // Create notification with action buttons
     final androidDetails = AndroidNotificationDetails(
       channelId,
@@ -279,35 +314,42 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       playSound: true,
+      sound: const RawResourceAndroidNotificationSound('alarm'),
       enableVibration: true,
       enableLights: true,
       showWhen: true,
-      ticker: 'Habit Reminder',
+      ticker: 'reminders'.tr(),
       color: _parseColor(habit.color),
       styleInformation: BigTextStyleInformation(
-        'حان وقت العمل على ${habit.name}!',
+        'reminder_message'.tr(namedArgs: {'habit': habit.name}),
         contentTitle: habit.name,
       ),
       actions: [
-        const AndroidNotificationAction(
+        AndroidNotificationAction(
           actionMarkDone,
-          'تم الإنجاز',
+          'mark_done'.tr(),
           showsUserInterface: false,
           cancelNotification: true,
         ),
-        const AndroidNotificationAction(
+        AndroidNotificationAction(
           actionSnooze,
-          'غفوة',
+          'snooze'.tr(),
           showsUserInterface: false,
           cancelNotification: true,
         ),
       ],
     );
 
+    debugPrint('📢 Notification details created for habit: ${habit.name}');
+    debugPrint('📢 Channel: $channelId');
+    debugPrint('📢 Importance: ${androidDetails.importance}');
+    debugPrint('📢 Priority: ${androidDetails.priority}');
+
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'alarm.wav',
       categoryIdentifier: 'habitReminder',
     );
 
@@ -322,37 +364,74 @@ class NotificationService {
     try {
       final scheduledDate = tz.TZDateTime.from(nextScheduledTime, tz.local);
       final now = tz.TZDateTime.now(tz.local);
-      
+
       debugPrint('🕐 Current time: $now');
       debugPrint('⏰ Scheduled time: $scheduledDate');
-      debugPrint('⏱️ Time until notification: ${scheduledDate.difference(now).inMinutes} minutes');
-      
+      debugPrint(
+          '⏱️ Time until notification: ${scheduledDate.difference(now).inMinutes} minutes');
+      debugPrint('📝 Notification ID: $notificationId');
+      debugPrint('📝 Payload: $payload');
+
       // Check if scheduled time is in the future
       if (scheduledDate.isBefore(now)) {
-        debugPrint('⚠️ Scheduled time is in the past! Adjusting to next occurrence...');
+        debugPrint(
+            '⚠️ Scheduled time is in the past! This should not happen for new reminders.');
+        return;
       }
-      
-      await _notifications.zonedSchedule(
-        notificationId,
-        habit.name,
-        'reminder_message'.tr(namedArgs: {'habit': habit.name}),
-        scheduledDate,
-        notificationDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        payload: payload,
-        matchDateTimeComponents: reminder.isRecurring ? DateTimeComponents.time : null,
-      );
 
-      debugPrint('✅ Scheduled reminder for ${habit.name} at $scheduledDate (ID: $notificationId)');
-      
+      // Try exact alarm mode, fall back to inexact if it fails
+      try {
+        await _notifications.zonedSchedule(
+          notificationId,
+          habit.name,
+          'reminder_message'.tr(namedArgs: {'habit': habit.name}),
+          scheduledDate,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payload,
+          matchDateTimeComponents:
+              reminder.isRecurring ? DateTimeComponents.time : null,
+        );
+        debugPrint('✅ Successfully scheduled with exactAllowWhileIdle');
+      } catch (e) {
+        debugPrint('⚠️ Failed with exactAllowWhileIdle: $e');
+        debugPrint('🔄 Retrying with exact mode...');
+
+        // Fallback to exact mode
+        await _notifications.zonedSchedule(
+          notificationId,
+          habit.name,
+          'reminder_message'.tr(namedArgs: {'habit': habit.name}),
+          scheduledDate,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.exact,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payload,
+          matchDateTimeComponents:
+              reminder.isRecurring ? DateTimeComponents.time : null,
+        );
+        debugPrint('✅ Successfully scheduled with exact mode');
+      }
+
+      debugPrint(
+          '✅ Scheduled reminder for ${habit.name} at $scheduledDate (ID: $notificationId)');
+
       // Verify the notification was scheduled
       final pending = await _notifications.pendingNotificationRequests();
+      debugPrint('📋 Total pending notifications: ${pending.length}');
+      for (var n in pending.take(5)) {
+        debugPrint('  - ID: ${n.id}, Title: ${n.title}, Body: ${n.body}');
+      }
       final scheduled = pending.where((n) => n.id == notificationId).toList();
       if (scheduled.isEmpty) {
         debugPrint('⚠️ WARNING: Notification not found in pending list!');
       } else {
         debugPrint('✅ Verified: Notification is in pending list');
+        debugPrint(
+            '✅ Full notification: ID=${scheduled[0].id}, Title=${scheduled[0].title}');
       }
     } catch (e) {
       debugPrint('❌ Error scheduling reminder: $e');
@@ -395,6 +474,42 @@ class NotificationService {
     debugPrint('🚫 Cancelled all notifications');
   }
 
+  /// Show immediate test notification (for debugging)
+  Future<void> showImmediateTestNotification(String message) async {
+    if (!_initialized) await initialize();
+
+    const androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      channelDescription: channelDescription,
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      showWhen: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      999999,
+      'Test Notification',
+      message,
+      notificationDetails,
+    );
+
+    debugPrint('📢 Immediate test notification shown: $message');
+  }
+
   /// Show immediate test notification
   Future<void> showTestNotification({
     required String habitName,
@@ -406,24 +521,25 @@ class NotificationService {
       channelId,
       channelName,
       channelDescription: channelDescription,
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       playSound: true,
       enableVibration: true,
       enableLights: true,
       showWhen: true,
-      ticker: 'Habit Reminder',
+      sound: const RawResourceAndroidNotificationSound('alarm'),
+      ticker: 'reminders'.tr(),
       styleInformation: BigTextStyleInformation(''),
       actions: [
         AndroidNotificationAction(
           actionMarkDone,
-          'تم الإنجاز',
+          'mark_done'.tr(),
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           actionSnooze,
-          'غفوة',
+          'snooze'.tr(),
           showsUserInterface: false,
           cancelNotification: true,
         ),
@@ -434,6 +550,7 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'alarm.wav',
     );
 
     final notificationDetails = NotificationDetails(
@@ -444,7 +561,7 @@ class NotificationService {
     await _notifications.show(
       DateTime.now().millisecondsSinceEpoch % 100000,
       habitName,
-      'حان وقت العمل على $habitName!',
+      'reminder_message'.tr(namedArgs: {'habit': habitName}),
       notificationDetails,
       payload: '$habitId|0|$habitName',
     );
@@ -460,16 +577,20 @@ class NotificationService {
   }) async {
     final snoozeMinutes = customMinutes ?? reminder.snoozeMinutes;
     final snoozeTime = DateTime.now().add(Duration(minutes: snoozeMinutes));
-    
-    final notificationId = _generateNotificationId(habit.habitID!, reminder.reminderID ?? 0);
-    
+
+    final notificationId =
+        _generateNotificationId(habit.habitID!, reminder.reminderID ?? 0);
+
     final androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
       channelDescription: channelDescription,
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       playSound: true,
+      sound: const RawResourceAndroidNotificationSound('alarm'),
+      enableVibration: true,
+      enableLights: true,
       actions: [
         AndroidNotificationAction(
           actionMarkDone,
@@ -484,6 +605,7 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'alarm.wav',
     );
 
     final notificationDetails = NotificationDetails(
@@ -495,7 +617,7 @@ class NotificationService {
 
     try {
       final scheduledDate = tz.TZDateTime.from(snoozeTime, tz.local);
-      
+
       await _notifications.zonedSchedule(
         notificationId,
         habit.name,
@@ -503,7 +625,8 @@ class NotificationService {
         scheduledDate,
         notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );
 
