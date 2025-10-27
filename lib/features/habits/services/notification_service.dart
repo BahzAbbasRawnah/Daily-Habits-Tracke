@@ -527,19 +527,18 @@ class NotificationService {
       enableVibration: true,
       enableLights: true,
       showWhen: true,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
-      ticker: 'reminders'.tr(),
+      ticker: 'Habit Reminder',
       styleInformation: BigTextStyleInformation(''),
       actions: [
         AndroidNotificationAction(
           actionMarkDone,
-          'mark_done'.tr(),
+          'تم الإنجاز',
           showsUserInterface: false,
           cancelNotification: true,
         ),
         AndroidNotificationAction(
           actionSnooze,
-          'snooze'.tr(),
+          'غفوة',
           showsUserInterface: false,
           cancelNotification: true,
         ),
@@ -550,7 +549,6 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      sound: 'alarm.wav',
     );
 
     final notificationDetails = NotificationDetails(
@@ -588,7 +586,6 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       playSound: true,
-      sound: const RawResourceAndroidNotificationSound('alarm'),
       enableVibration: true,
       enableLights: true,
       actions: [
@@ -605,7 +602,6 @@ class NotificationService {
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      sound: 'alarm.wav',
     );
 
     final notificationDetails = NotificationDetails(

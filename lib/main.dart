@@ -20,26 +20,29 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:daily_habits/features/habits/services/reminder_manager_service.dart';
 import 'package:daily_habits/features/habits/services/background_service.dart';
 import 'dart:io';
+import 'package:daily_habits/core/services/foreground_service_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
-  
+
   // Initialize reminder manager service
   try {
     final reminderManager = ReminderManagerService();
     await reminderManager.initialize();
-    
+
     // Request notification permissions
     final permissionGranted = await reminderManager.requestPermissions();
     if (permissionGranted) {
       debugPrint('✅ Notification permissions granted');
       // Reschedule all active reminders on app start
       await reminderManager.rescheduleAllReminders();
-      
+
       // Initialize background service for Android only
       if (Platform.isAndroid) {
         await BackgroundService.initialize();
+        // Start foreground service to keep notifications working
+        await ForegroundServiceManager.startService();
       }
     } else {
       debugPrint('⚠️ Notification permissions denied');
@@ -47,14 +50,14 @@ void main() async {
   } catch (e) {
     debugPrint('❌ Error initializing reminder manager: $e');
   }
-  
+
   // Load environment variables
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint('Error loading .env file: $e');
   }
-  
+
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -106,7 +109,8 @@ class _MyAppState extends State<MyApp> {
 
   // Initialize providers
   Future<void> _initializeProviders() async {
-    final appStateProvider = Provider.of<AppStateProvider>(context, listen: false);
+    final appStateProvider =
+        Provider.of<AppStateProvider>(context, listen: false);
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
 
     await Future.wait([
