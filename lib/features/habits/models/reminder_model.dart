@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Reminder model for scheduling habit notifications
 class HabitReminder {
   final int? reminderID;
@@ -27,18 +29,21 @@ class HabitReminder {
       reminderID: map['ReminderID'],
       habitID: map['HabitID'],
       time: map['Time'],
-      weekdays: map['Weekdays'] != null && (map['Weekdays'] as String).isNotEmpty
-          ? (map['Weekdays'] as String).split(',').map((e) => int.parse(e)).toList()
-          : null,
+      weekdays:
+          map['Weekdays'] != null && (map['Weekdays'] as String).isNotEmpty
+              ? (map['Weekdays'] as String)
+                  .split(',')
+                  .map((e) => int.parse(e))
+                  .toList()
+              : null,
       isActive: map['IsActive'] == 1,
       isRecurring: map['IsRecurring'] == 1,
       scheduledDate: map['ScheduledDate'] != null
           ? DateTime.parse(map['ScheduledDate'])
           : null,
       snoozeMinutes: map['SnoozeMinutes'] ?? 10,
-      createdAt: map['CreatedAt'] != null
-          ? DateTime.parse(map['CreatedAt'])
-          : null,
+      createdAt:
+          map['CreatedAt'] != null ? DateTime.parse(map['CreatedAt']) : null,
     );
   }
 
@@ -64,7 +69,10 @@ class HabitReminder {
 
     final hour = int.tryParse(timeParts[0]);
     final minute = int.tryParse(timeParts[1]);
-    if (hour == null || minute == null) return null;
+    if (hour == null || minute == null) {
+      debugPrint('❌ Failed to parse time: $time');
+      return null;
+    }
 
     if (!isRecurring && scheduledDate != null) {
       // One-off reminder
@@ -82,9 +90,20 @@ class HabitReminder {
     if (weekdays == null || weekdays!.isEmpty) {
       // Daily reminder
       var nextTime = DateTime(now.year, now.month, now.day, hour, minute);
+      debugPrint('⏰ Created nextTime for today: $nextTime');
+      debugPrint('🕐 Current time: $now');
+      debugPrint('🔍 Is nextTime before now? ${nextTime.isBefore(now)}');
+      debugPrint(
+          '🔍 Is nextTime at same moment? ${nextTime.isAtSameMomentAs(now)}');
+
       if (nextTime.isBefore(now) || nextTime.isAtSameMomentAs(now)) {
+        debugPrint('⏭️ Time is in the past, scheduling for tomorrow...');
         nextTime = nextTime.add(const Duration(days: 1));
+      } else {
+        debugPrint('✅ Time is in the future, scheduling for today!');
       }
+
+      debugPrint('✅ Final scheduled time: $nextTime');
       return nextTime;
     }
 

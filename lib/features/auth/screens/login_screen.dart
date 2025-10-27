@@ -66,14 +66,14 @@ class _LoginScreenState extends State<LoginScreen> {
     // Wait for navigation to complete
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    
+
     debugPrint('🔍 Checking permissions after login...');
-    
+
     final reminderManager = ReminderManagerService();
     final hasPermission = await reminderManager.arePermissionsGranted();
-    
+
     debugPrint('🔍 Has permission: $hasPermission');
-    
+
     if (!hasPermission && mounted) {
       debugPrint('🔔 Showing permission dialog...');
       await PermissionDialog.showExactAlarmPermissionDialog(context);
@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Login successful - navigate to habits screen
           // Start permission check in parallel
           _checkAndRequestPermissions();
-          
+
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {
               Navigator.pushNamedAndRemoveUntil(
@@ -323,7 +323,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Text(
                           'Welcome Back! 👋',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryColor,
                               ),
@@ -331,9 +334,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Sign in to continue your habit journey',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[600],
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
                           textAlign: TextAlign.center,
                         ),
                       ],

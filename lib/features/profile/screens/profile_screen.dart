@@ -3,7 +3,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:daily_habits/shared/widgets/custom_app_bar.dart';
-import 'package:daily_habits/shared/widgets/ai_chat_fab.dart';
 import 'package:daily_habits/config/routes.dart';
 import 'package:daily_habits/features/auth/services/auth_service.dart';
 import 'package:daily_habits/config/theme.dart';
@@ -13,6 +12,7 @@ import 'package:daily_habits/features/profile/providers/user_provider.dart';
 import 'package:daily_habits/features/habits/providers/habit_provider.dart';
 import 'package:daily_habits/features/habits/services/analytics_service.dart';
 import 'package:daily_habits/utils/language_util.dart';
+import 'package:daily_habits/features/habits/screens/notification_test_screen.dart';
 
 /// Profile screen for Daily Habit Tracker
 class ProfileScreen extends StatefulWidget {
@@ -35,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Load user data and habits
   Future<void> _loadData() async {
     if (!mounted) return;
-    
+
     await Future.wait([
       context.read<UserProvider>().fetchUser(),
       context.read<HabitProvider>().loadHabits(1),
@@ -96,7 +96,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final user = userProvider.user;
           final habits = habitProvider.habits;
           final activeHabits = habits.where((h) => h.isActive).toList();
-          
+
           // Calculate longest streak from all habits
           int longestStreak = 0;
           if (habits.isNotEmpty) {
@@ -117,174 +117,218 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                // Profile header
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                          child: Icon(
-                            Icons.person,
-                            size: 50,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          user?.name ?? 'Daily Habits User',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (user?.email != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            user!.email!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
+                  // Profile header
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor:
+                                AppTheme.primaryColor.withOpacity(0.1),
+                            child: Icon(
+                              Icons.person,
+                              size: 50,
+                              color: AppTheme.primaryColor,
                             ),
                           ),
-                        ],
-                        const SizedBox(height: 8),
-                        Text(
-                          'member_since'.tr() + ' ${user?.createdAt != null ? DateFormat('MMMM yyyy').format(user!.createdAt!) : DateFormat('MMMM yyyy').format(DateTime.now())}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Stats cards
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'total_habits'.tr(),
-                        '${activeHabits.length}',
-                        Icons.track_changes,
-                        AppTheme.primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        'streak'.tr(),
-                        '$longestStreak',
-                        Icons.local_fire_department,
-                        AppTheme.streakColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Daily Streak Summary
-                if (longestStreak > 0)
-                  Card(
-                    color: AppTheme.streakColor.withOpacity(0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.local_fire_department,
-                            color: AppTheme.streakColor,
-                            size: 32,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'your_current_streak'.tr(),
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          const SizedBox(height: 16),
+                          Text(
+                            user?.name ?? 'Daily Habits User',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                Text(
-                                  '$longestStreak ${'days_strong'.tr()} 🎯',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          ),
+                          if (user?.email != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              user!.email!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: Colors.grey[600],
                                   ),
-                                ),
-                              ],
                             ),
+                          ],
+                          const SizedBox(height: 8),
+                          Text(
+                            'member_since'.tr() +
+                                ' ${user?.createdAt != null ? DateFormat('MMMM yyyy').format(user!.createdAt!) : DateFormat('MMMM yyyy').format(DateTime.now())}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                // Settings Section
-                _buildProfileSection(
-                  'settings'.tr(),
-                  [
-                    _buildInlineLanguageSwitcher(),
-                    _buildInlineThemeSwitcher(),
-                    _buildProfileItem(
-                      Icons.notifications_outlined,
-                      'notifications'.tr(),
-                      subtitle: 'manage_your_reminders'.tr(),
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.notifications),
-                    ),
-                    _buildProfileItem(
-                      Icons.info_outline,
-                      'about_app'.tr(),
-                      subtitle: 'app_info_and_team'.tr(),
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.about),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                  // Stats cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'total_habits'.tr(),
+                          '${activeHabits.length}',
+                          Icons.track_changes,
+                          AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          'streak'.tr(),
+                          '$longestStreak',
+                          Icons.local_fire_department,
+                          AppTheme.streakColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
-                // Analytics Section
-                _buildProfileSection(
-                  'analytics'.tr(),
-                  [
-                    _buildProfileItem(
-                      Icons.analytics_outlined,
-                      'analytics'.tr(),
-                      subtitle: 'view_your_progress'.tr(),
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.analytics),
-                    ),
-                    _buildProfileItem(
-                      Icons.emoji_events_outlined,
-                      'achievements'.tr(),
-                      subtitle: 'your_milestones'.tr(),
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.achievements),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Logout section
-                Card(
-                  child: ListTile(
-                    leading: Icon(Icons.logout, color: Colors.red[600]),
-                    title: Text(
-                      'logout'.tr(),
-                      style: TextStyle(
-                        color: Colors.red[600],
-                        fontWeight: FontWeight.w600,
+                  // Daily Streak Summary
+                  if (longestStreak > 0)
+                    Card(
+                      color: AppTheme.streakColor.withOpacity(0.1),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.local_fire_department,
+                              color: AppTheme.streakColor,
+                              size: 32,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'your_current_streak'.tr(),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  Text(
+                                    '$longestStreak ${'days_strong'.tr()} 🎯',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Colors.grey[600],
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    subtitle: Text(
-                      'sign_out_of_your_account'.tr(),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.chevron_right, color: Colors.red),
-                    onTap: _showLogoutDialog,
+                  const SizedBox(height: 16),
+
+                  // Settings Section
+                  _buildProfileSection(
+                    'settings'.tr(),
+                    [
+                      _buildInlineLanguageSwitcher(),
+                      _buildInlineThemeSwitcher(),
+                      _buildProfileItem(
+                        Icons.notifications_outlined,
+                        'notifications'.tr(),
+                        subtitle: 'manage_your_reminders'.tr(),
+                        onTap: () => Navigator.pushNamed(
+                            context, AppRoutes.notifications),
+                      ),
+                      _buildProfileItem(
+                        Icons.info_outline,
+                        'about_app'.tr(),
+                        subtitle: 'app_info_and_team'.tr(),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.about),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  // Analytics Section
+                  _buildProfileSection(
+                    'analytics'.tr(),
+                    [
+                      _buildProfileItem(
+                        Icons.analytics_outlined,
+                        'analytics'.tr(),
+                        subtitle: 'view_your_progress'.tr(),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.analytics),
+                      ),
+                      _buildProfileItem(
+                        Icons.emoji_events_outlined,
+                        'achievements'.tr(),
+                        subtitle: 'your_milestones'.tr(),
+                        onTap: () => Navigator.pushNamed(
+                            context, AppRoutes.achievements),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Debug Section
+                  _buildProfileSection(
+                    '🔧 Debug Tools',
+                    [
+                      _buildProfileItem(
+                        Icons.notifications_active,
+                        'test_notifications'.tr(),
+                        subtitle: 'test_notification_system_description'.tr(),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const NotificationTestScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Logout section
+                  Card(
+                    child: ListTile(
+                      leading: Icon(Icons.logout, color: Colors.red[600]),
+                      title: Text(
+                        'logout'.tr(),
+                        style: TextStyle(
+                          color: Colors.red[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'sign_out_of_your_account'.tr(),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                      trailing:
+                          const Icon(Icons.chevron_right, color: Colors.red),
+                      onTap: _showLogoutDialog,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -295,7 +339,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -306,9 +351,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               value,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
             ),
             Text(
               title,
@@ -331,8 +376,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
           ...items,
@@ -434,8 +479,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               'language'.tr(),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 20),
             _buildLanguageOption(
@@ -486,8 +531,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               'theme'.tr(),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 20),
             _buildThemeOption(
@@ -692,7 +737,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await prefs.remove(AppConstants.prefUserToken);
       await prefs.remove(AppConstants.prefUserId);
       await prefs.remove(AppConstants.prefUserRole);
-      
+
       // Clear auth state
       await AuthService.clearLoginState();
 

@@ -108,6 +108,7 @@ flutter:
     - assets/translations/
     - assets/fonts/
     - assets/animations/
+    - assets/sounds/
     - .env
 
 

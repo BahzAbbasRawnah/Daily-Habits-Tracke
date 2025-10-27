@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Habit categories
 enum HabitCategory {
   exercise,
@@ -16,23 +14,23 @@ enum HabitCategory {
 
 /// Target types for habits
 enum TargetType {
-  yesNo,        // Simple yes/no completion
-  count,        // Times per day (e.g., 3x per day)
-  duration,     // Duration in minutes
+  yesNo, // Simple yes/no completion
+  count, // Times per day (e.g., 3x per day)
+  duration, // Duration in minutes
 }
 
 /// Schedule types
 enum ScheduleType {
   daily,
-  specificDays,  // Mon-Fri, weekends, etc.
-  custom,        // User-defined pattern
+  specificDays, // Mon-Fri, weekends, etc.
+  custom, // User-defined pattern
 }
 
 /// Schedule configuration for habits
 class HabitSchedule {
   final ScheduleType type;
   final List<int>? days; // 1=Monday, 7=Sunday
-  final int? times;      // Times per day
+  final int? times; // Times per day
 
   const HabitSchedule({
     required this.type,
@@ -75,7 +73,9 @@ class HabitSchedule {
       days: parts.length > 1 && parts[1].isNotEmpty
           ? parts[1].split(',').map((e) => int.parse(e)).toList()
           : null,
-      times: parts.length > 2 && parts[2].isNotEmpty ? int.tryParse(parts[2]) : null,
+      times: parts.length > 2 && parts[2].isNotEmpty
+          ? int.tryParse(parts[2])
+          : null,
     );
   }
 }
@@ -139,7 +139,8 @@ class Habit {
       icon: map['Icon'],
       color: map['Color'],
       isActive: map['IsActive'] == 1,
-      createdAt: map['CreatedAt'] != null ? DateTime.parse(map['CreatedAt']) : null,
+      createdAt:
+          map['CreatedAt'] != null ? DateTime.parse(map['CreatedAt']) : null,
       reminderTimes: map['ReminderTimes'] != null
           ? (map['ReminderTimes'] as String).split(',')
           : null,
@@ -167,43 +168,19 @@ class Habit {
 
   /// Check if habit should be shown on a specific date
   bool isScheduledFor(DateTime date) {
-    debugPrint('🔍 Checking if habit "$name" is scheduled for ${date.weekday} (${_getWeekdayName(date.weekday)})');
-    debugPrint('🔍 Schedule type: ${schedule.type}');
-    debugPrint('🔍 Schedule days: ${schedule.days}');
-    
     switch (schedule.type) {
       case ScheduleType.daily:
-        debugPrint('✅ Daily habit - always shown');
         return true;
       case ScheduleType.specificDays:
         if (schedule.days == null) {
-          debugPrint('✅ No specific days set - showing habit');
           return true;
         }
-        final isScheduled = schedule.days!.contains(date.weekday);
-        debugPrint(isScheduled ? '✅ Habit IS scheduled for this day' : '❌ Habit NOT scheduled for this day');
-        return isScheduled;
+        return schedule.days!.contains(date.weekday);
       case ScheduleType.custom:
         if (schedule.days == null) {
-          debugPrint('✅ No custom days set - showing habit');
           return true;
         }
-        final isScheduled = schedule.days!.contains(date.weekday);
-        debugPrint(isScheduled ? '✅ Habit IS scheduled for this day' : '❌ Habit NOT scheduled for this day');
-        return isScheduled;
-    }
-  }
-  
-  String _getWeekdayName(int weekday) {
-    switch (weekday) {
-      case 1: return 'Monday';
-      case 2: return 'Tuesday';
-      case 3: return 'Wednesday';
-      case 4: return 'Thursday';
-      case 5: return 'Friday';
-      case 6: return 'Saturday';
-      case 7: return 'Sunday';
-      default: return 'Unknown';
+        return schedule.days!.contains(date.weekday);
     }
   }
 

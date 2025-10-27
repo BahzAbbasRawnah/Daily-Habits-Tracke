@@ -26,7 +26,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
   final HabitDatabaseService _databaseService = HabitDatabaseService();
@@ -50,14 +51,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Wait for navigation to complete
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    
+
     debugPrint('🔍 Checking permissions after registration...');
-    
+
     final reminderManager = ReminderManagerService();
     final hasPermission = await reminderManager.arePermissionsGranted();
-    
+
     debugPrint('🔍 Has permission: $hasPermission');
-    
+
     if (!hasPermission && mounted) {
       debugPrint('🔔 Showing permission dialog...');
       await PermissionDialog.showExactAlarmPermissionDialog(context);
@@ -80,7 +81,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       try {
         final user = User(
           name: _nameController.text.trim(),
-          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+          email: _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
           password: _passwordController.text.trim(),
           language: 'ar',
           theme: 'light',
@@ -237,7 +240,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         Text(
                           'Create Account 🌟',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryColor,
                               ),
@@ -245,9 +251,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 8),
                         Text(
                           'Start building better habits today',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[600],
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -270,8 +277,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
-
 
                   // Email field (Optional)
                   CustomTextField(

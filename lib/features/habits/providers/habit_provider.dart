@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/habit_model.dart';
 import '../repositories/habit_repository.dart';
+import '../services/reminder_manager_service.dart';
 
 class HabitProvider extends ChangeNotifier {
   final HabitRepository _repository = HabitRepository();
@@ -49,9 +50,23 @@ class HabitProvider extends ChangeNotifier {
 
   Future<void> deleteHabit(int habitID, int userID) async {
     try {
+      debugPrint('🗑️ Deleting habit ID: $habitID');
+
+      // Cancel all reminders and notifications for this habit
+      final reminderManager = ReminderManagerService();
+      await reminderManager.cancelHabitReminders(habitID);
+      debugPrint('✅ Cancelled all reminders for habit $habitID');
+
+      // Delete the habit from database
       await _repository.deleteHabit(habitID);
+      debugPrint('✅ Deleted habit $habitID from database');
+
+      // Reload habits
       await loadHabits(userID);
+
+      debugPrint('✅ Habit deletion complete');
     } catch (e) {
+      debugPrint('❌ Error deleting habit: $e');
       _error = e.toString();
       notifyListeners();
     }
