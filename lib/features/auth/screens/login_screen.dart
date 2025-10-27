@@ -7,7 +7,8 @@ import 'package:daily_habits/shared/widgets/custom_button.dart';
 import 'package:daily_habits/shared/widgets/custom_text_field.dart';
 import 'package:daily_habits/shared/widgets/custom_messages.dart';
 import 'package:daily_habits/core/database/habit_database_service.dart';
-import 'package:daily_habits/core/services/google_auth_service.dart';
+// Commented out - Google sign-in not in use currently
+// import 'package:daily_habits/core/services/google_auth_service.dart';
 import 'package:daily_habits/features/auth/services/auth_service.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:daily_habits/features/habits/services/reminder_manager_service.dart';
@@ -26,7 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final HabitDatabaseService _databaseService = HabitDatabaseService();
-  final GoogleAuthService _googleAuthService = GoogleAuthService();
+  // Commented out - Google sign-in not in use currently
+  // final GoogleAuthService _googleAuthService = GoogleAuthService();
   bool _isLoading = false;
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _canCheckBiometrics = false;
@@ -216,7 +218,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Sign in with Google
+  // Sign in with Google - Commented out for now, might use later
+  /*
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -267,6 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+  */
 
   @override
   Widget build(BuildContext context) {
@@ -433,6 +437,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Google Sign-In - Commented out for now, might use later
+                  /*
                   // Divider with "OR" text
                   Row(
                     children: [
@@ -497,6 +503,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  */
 
                   // Register link
                   Center(

@@ -8,7 +8,8 @@ import 'package:daily_habits/shared/widgets/custom_text_field.dart';
 import 'package:daily_habits/shared/widgets/custom_messages.dart';
 import 'package:daily_habits/features/habits/models/user_model.dart';
 import 'package:daily_habits/core/database/habit_database_service.dart';
-import 'package:daily_habits/core/services/google_auth_service.dart';
+// Commented out - Google sign-in not in use currently
+// import 'package:daily_habits/core/services/google_auth_service.dart';
 import 'package:daily_habits/features/auth/services/auth_service.dart';
 import 'package:daily_habits/features/habits/services/reminder_manager_service.dart';
 import 'package:daily_habits/features/habits/widgets/permission_dialog.dart';
@@ -29,7 +30,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final HabitDatabaseService _databaseService = HabitDatabaseService();
-  final GoogleAuthService _googleAuthService = GoogleAuthService();
+  // Commented out - Google sign-in not in use currently
+  // final GoogleAuthService _googleAuthService = GoogleAuthService();
 
   bool _isLoading = false;
   bool _acceptTerms = false;
@@ -128,7 +130,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // Sign in with Google
+  // Sign in with Google - Commented out for now, might use later
+  /*
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -179,6 +182,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
+  */
 
   // Navigate to login screen
   void _navigateToLogin() {
@@ -357,6 +361,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Google Sign-In - Commented out for now, might use later
+                  /*
                   // Divider with "OR" text
                   Row(
                     children: [
@@ -423,6 +429,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  */
 
                   // Login link
                   Center(
